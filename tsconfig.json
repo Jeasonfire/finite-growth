@@ -9,6 +9,7 @@
         "./lib/p2.d.ts",
         "./lib/phaser.d.ts",
         "./lib/pixi.d.ts",
+        "./src/build.ts",
         "./src/gameState.ts",
         "./src/main.ts"
     ],
