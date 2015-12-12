@@ -32,25 +32,28 @@ var GameState = (function () {
         this.houses = [];
         var build = this.startConstruction(Math.floor(Math.floor(900 / TILE_SIZE) / 2), this.tileElevation - 1);
         this.finishBuild(build);
-        this.fadedGroundSprite = this.game.add.sprite(0, 0, "ground");
-        this.fadedGroundSprite.anchor.setTo(0.5);
-        this.fadedGroundSprite.alpha = 0.4;
-        this.fadedGroundSprite.visible = false;
         this.fadedHouseSprite = this.game.add.sprite(0, 0, "house");
         this.fadedHouseSprite.anchor.setTo(0.5);
         this.fadedHouseSprite.alpha = 0.4;
-        this.fadedHouseSprite.visible = true;
-        this.currentFaded = TileType.HOUSE;
-        this.personSpriteTemplate = this.game.add.sprite(0, 0, "person");
-        this.personSpriteTemplate.anchor.setTo(0.5);
+        var firstPerson = new Person(420, 400, this.game);
+        this.people = [firstPerson];
+        this.freePeople = [firstPerson];
     };
     GameState.prototype.update = function () {
         this.updateMouseSprite();
         if (this.game.input.activePointer.leftButton.isDown) {
             this.leftClick();
         }
+        for (var i = 0; i < this.people.length; i++) {
+            this.people[i].update();
+        }
         for (var i = 0; i < this.builds.length; i++) {
-            this.builds[i].updateTimer(this.game.time);
+            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding()) {
+                this.updateFreePeople();
+                if (this.freePeople.length > 0) {
+                    this.freePeople[Math.floor(Math.random() * this.freePeople.length)].startWorkingOn(this.builds[i]);
+                }
+            }
             if (this.builds[i].isDoneBuilding()) {
                 this.finishBuild(this.builds[i]);
                 this.builds.splice(i, 1);
@@ -59,23 +62,21 @@ var GameState = (function () {
         for (var i = 0; i < this.houses.length; i++) {
             this.updateHouse(this.houses[i]);
         }
-        this.updateCamera();
     };
-    GameState.prototype.updateCamera = function () {
+    GameState.prototype.updateFreePeople = function () {
+        for (var i = 0; i < this.people.length; i++) {
+            var freeIndex = this.freePeople.indexOf(this.people[i]);
+            if (this.people[i].build === null && freeIndex == -1) {
+                this.freePeople.push(this.people[i]);
+            }
+            if (this.people[i].build !== null && freeIndex != -1) {
+                this.freePeople.splice(freeIndex, 1);
+            }
+        }
     };
     GameState.prototype.updateMouseSprite = function () {
-        var x = this.mouseTileX() * TILE_SIZE;
-        var y = this.mouseTileY() * TILE_SIZE;
-        switch (this.currentFaded) {
-            case TileType.HOUSE:
-                this.fadedHouseSprite.x = x;
-                this.fadedHouseSprite.y = y;
-                break;
-            case TileType.GROUND:
-                this.fadedGroundSprite.x = x;
-                this.fadedGroundSprite.y = y;
-                break;
-        }
+        this.fadedHouseSprite.x = this.mouseTileX() * TILE_SIZE;
+        this.fadedHouseSprite.y = this.mouseTileY() * TILE_SIZE;
     };
     GameState.prototype.mouseTileX = function () {
         return Math.floor((this.game.input.activePointer.x + TILE_SIZE * 0.5 + this.game.camera.x) / TILE_SIZE);
@@ -89,9 +90,10 @@ var GameState = (function () {
         var tileOver = this.buildExistsAt(xTile, yTile) || this.houseExistsAt(xTile, yTile) || this.groundExistsAt(xTile, yTile);
         var tileUnder = this.buildExistsAt(xTile, yTile + 1) || this.houseExistsAt(xTile, yTile + 1) || groundUnder;
         if (!tileOver && tileUnder) {
-            build.sprite = this.game.add.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, "house");
-            build.sprite.anchor.setTo(0.5);
-            build.sprite.frame = 0;
+            var sprite = this.game.add.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, "house");
+            sprite.anchor.setTo(0.5, 0.5);
+            sprite.frame = 4;
+            build.setSprite(sprite, this.game);
             this.builds.push(build);
             return build;
         }
@@ -102,7 +104,7 @@ var GameState = (function () {
     GameState.prototype.finishBuild = function (build) {
         var x = build.getX();
         var y = build.getY();
-        build.sprite.destroy();
+        build.finish();
         var house = this.game.add.sprite(x * TILE_SIZE, y * TILE_SIZE, "house");
         house.anchor.setTo(0.5, 0.5);
         this.houses.push(house);
@@ -115,15 +117,15 @@ var GameState = (function () {
         var tileUnder = this.buildExistsAt(x, y + 1) || this.houseExistsAt(x, y + 1) || groundUnder;
         var houseOnTop = this.buildExistsAt(x, y - 1) || this.houseExistsAt(x, y - 1);
         var houseUnder = tileUnder && !groundUnder;
-        var houseType = 1;
+        var houseType = 0;
         if (houseUnder && houseOnTop) {
-            houseType = 3;
+            houseType = 2;
         }
         else if (houseUnder) {
-            houseType = 4;
+            houseType = 3;
         }
         else if (houseOnTop) {
-            houseType = 2;
+            houseType = 1;
         }
         if (houseType != house.frame) {
             house.frame = houseType;
@@ -165,24 +167,9 @@ var GameState = (function () {
     GameState.prototype.leftClick = function () {
         var mouseX = this.mouseTileX();
         var mouseY = this.mouseTileY();
-        if (this.currentFaded == TileType.HOUSE) {
-            this.startConstruction(mouseX, mouseY);
-        }
-        else if (this.currentFaded == TileType.GROUND) {
-            this.createGround(mouseX, mouseY);
-        }
+        var build = this.startConstruction(mouseX, mouseY);
     };
     GameState.prototype.rightClick = function () {
-        if (this.currentFaded == TileType.HOUSE) {
-            this.currentFaded = TileType.GROUND;
-            this.fadedGroundSprite.visible = true;
-            this.fadedHouseSprite.visible = false;
-        }
-        else if (this.currentFaded == TileType.GROUND) {
-            this.currentFaded = TileType.HOUSE;
-            this.fadedHouseSprite.visible = true;
-            this.fadedGroundSprite.visible = false;
-        }
     };
     return GameState;
 })();
