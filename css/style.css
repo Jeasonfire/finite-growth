@@ -1,0 +1,11 @@
+body {
+    margin: 0px;
+    background-color: #202020;
+}
+
+#game {
+    width: 900px;
+    height: 600px;
+    margin-left: auto;
+    margin-right: auto;
+}
