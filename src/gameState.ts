@@ -1,4 +1,5 @@
-var TILE_SIZE = 16;
+var TILE_SIZE = 32;
+var WORLD_WIDTH = 900;
 var CAMERA_MOVEMENT_MARGIN = 100;
 
 enum TileType {
@@ -17,14 +18,21 @@ class GameState {
     private builds: Build[];
     private houses: Phaser.Sprite[];
 
+    private personSpriteTemplate: Phaser.Sprite;
+
     public preload(): void {
         this.game.load.image("background", "./res/img/background.png");
         this.game.load.image("ground", "./res/img/ground.png");
-        this.game.load.spritesheet("house", "./res/img/house.png", 16, 16);
         this.game.load.image("buildProgress", "./res/img/buildProgress.png");
+
+        this.game.load.spritesheet("house", "./res/img/house.png", 32, 32);
+        this.game.load.spritesheet("person", "./res/img/person.png", 8, 8);
     }
 
     public create(): void {
+        this.game.physics.startSystem(Phaser.Physics.P2JS);
+        this.game.physics.p2.gravity.y = 900;
+
         this.game.input.activePointer.leftButton.onDown.add(this.leftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
 
@@ -32,10 +40,9 @@ class GameState {
         background.fixedToCamera = true;
 
         this.ground = this.game.add.group();
-        this.tileElevation = 30;
-        var startingBlocks = 5;
-        for (var i = 0; i < startingBlocks; i++) {
-            this.createGround(Math.floor((Math.floor(900 / TILE_SIZE) - startingBlocks) / 2) + i, this.tileElevation);
+        this.tileElevation = 15;
+        for (var i = 0; i < WORLD_WIDTH / TILE_SIZE; i++) {
+            this.createGround(i, this.tileElevation);
         }
 
         this.builds = [];
@@ -45,14 +52,19 @@ class GameState {
         this.finishBuild(build);
 
         this.fadedGroundSprite = this.game.add.sprite(0, 0, "ground");
+        this.fadedGroundSprite.anchor.setTo(0.5);
         this.fadedGroundSprite.alpha = 0.4;
         this.fadedGroundSprite.visible = false;
 
         this.fadedHouseSprite = this.game.add.sprite(0, 0, "house");
+        this.fadedHouseSprite.anchor.setTo(0.5);
         this.fadedHouseSprite.alpha = 0.4;
         this.fadedHouseSprite.visible = true;
 
         this.currentFaded = TileType.HOUSE;
+
+        this.personSpriteTemplate = this.game.add.sprite(0, 0, "person");
+        this.personSpriteTemplate.anchor.setTo(0.5);
     }
 
     public update(): void {
@@ -70,11 +82,16 @@ class GameState {
         for (var i = 0; i < this.houses.length; i++) {
             this.updateHouse(this.houses[i]);
         }
+        this.updateCamera();
+    }
+
+    private updateCamera(): void {
+        //this.game.camera.focusOnXY(450, 600 - this.tileElevation * TILE_SIZE);
     }
 
     private updateMouseSprite(): void {
-        var x = Math.floor((this.game.input.activePointer.x - this.game.camera.x) / TILE_SIZE) * TILE_SIZE;
-        var y = Math.floor((this.game.input.activePointer.y - this.game.camera.y) / TILE_SIZE) * TILE_SIZE;
+        var x = this.mouseTileX() * TILE_SIZE;
+        var y = this.mouseTileY() * TILE_SIZE;
         switch (this.currentFaded) {
         case TileType.HOUSE:
             this.fadedHouseSprite.x = x;
@@ -87,6 +104,14 @@ class GameState {
         }
     }
 
+    private mouseTileX(): number {
+        return Math.floor((this.game.input.activePointer.x + TILE_SIZE * 0.5 + this.game.camera.x) / TILE_SIZE);
+    }
+
+    private mouseTileY(): number {
+        return Math.floor((this.game.input.activePointer.y + TILE_SIZE * 0.5 + this.game.camera.y) / TILE_SIZE);
+    }
+
     private startConstruction(xTile: number, yTile: number): Build {
         var build = new Build(xTile, yTile);
         var groundUnder = this.groundExistsAt(xTile, yTile + 1);
@@ -94,6 +119,7 @@ class GameState {
         var tileUnder = this.buildExistsAt(xTile, yTile + 1) || this.houseExistsAt(xTile, yTile + 1) || groundUnder;
         if (!tileOver && tileUnder) {
             build.sprite = this.game.add.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, "house");
+            build.sprite.anchor.setTo(0.5);
             build.sprite.frame = 0;
             this.builds.push(build);
             return build;
@@ -107,6 +133,7 @@ class GameState {
         var y = build.getY();
         build.sprite.destroy();
         var house = this.game.add.sprite(x * TILE_SIZE, y * TILE_SIZE, "house");
+        house.anchor.setTo(0.5, 0.5);
         this.houses.push(house);
         return house;
     }
@@ -133,7 +160,11 @@ class GameState {
 
     private createGround(xTile: number, yTile: number): void {
         if (yTile == this.tileElevation && !this.groundExistsAt(xTile, yTile)) {
-            this.ground.add(this.game.add.sprite(Math.floor(xTile) * TILE_SIZE, Math.floor(yTile) * TILE_SIZE, "ground"));
+            var pieceOfGround = this.ground.add(this.game.add.sprite(Math.floor(xTile) * TILE_SIZE, Math.floor(yTile) * TILE_SIZE, "ground"));
+            pieceOfGround.anchor.setTo(0.5);
+            this.game.physics.p2.enableBody(pieceOfGround, false);
+            pieceOfGround.body.kinematic = false;
+            pieceOfGround.body.dynamic = false;
         }
     }
 
@@ -157,7 +188,7 @@ class GameState {
 
     private groundExistsAt(x: number, y: number): boolean {
         for (var i = 0; i < this.ground.length; i++) {
-            if (Math.floor(this.ground.children[i].x / TILE_SIZE) == x && Math.floor(this.ground.children[i].y / TILE_SIZE) == y) {
+            if (Math.floor(this.ground.children[i].x / TILE_SIZE + 0.5) == x && Math.floor(this.ground.children[i].y / TILE_SIZE + 0.5) == y) {
                 return true;
             }
         }
@@ -165,8 +196,8 @@ class GameState {
     }
 
     private leftClick(): void {
-        var mouseX = Math.floor(this.game.input.activePointer.x / TILE_SIZE);
-        var mouseY = Math.floor(this.game.input.activePointer.y / TILE_SIZE);
+        var mouseX = this.mouseTileX();
+        var mouseY = this.mouseTileY();
 
         if (this.currentFaded == TileType.HOUSE) {
             this.startConstruction(mouseX, mouseY);
