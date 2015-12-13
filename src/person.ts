@@ -1,5 +1,5 @@
 class Person {
-    private static HUNGER_INCREASE_FREQ = 0.1;
+    private static HUNGER_INCREASE_FREQ = 0.025;
 
     private game: Phaser.Game;
     private currentlyWorking: boolean;
@@ -11,6 +11,8 @@ class Person {
     public dead: boolean;
     public targetFarm: Phaser.Sprite;
     public targetPerson: Person;
+    public targetPoint: Phaser.Point;
+    public newPerson: Person;
 
     public directionChangeTimeCurrent: number = 0;
     public directionChangeTime: number = 1;
@@ -20,6 +22,8 @@ class Person {
         this.game = game;
         this.targetFarm = null;
         this.targetPerson = null;
+        this.targetPoint = null;
+        this.newPerson = null;
         this.sprite = this.game.add.sprite(x, y, "person");
         this.game.physics.p2.enableBody(this.sprite, false);
         this.sprite.body.setRectangle(1, 1);
@@ -49,6 +53,9 @@ class Person {
     }
 
     public updateHunger(farms: Phaser.Sprite[], people: Person[]): void {
+        if (this.targetPoint !== null) {
+            return;
+        }
         if (this.hunger > 0.67 && people.length > 0) {
             if (this.targetPerson === null) {
                 var dist = 1000;
@@ -63,9 +70,9 @@ class Person {
                 }
                 this.targetPerson = bestPerson;
             } else if (this.targetPerson.sprite.x - this.sprite.x > TILE_SIZE) {
-                this.sprite.body.moveRight(this.moveSpeed);
+                this.sprite.body.moveRight(this.moveSpeed * 1.5);
             } else if (this.targetPerson.sprite.x - this.sprite.x < -TILE_SIZE) {
-                this.sprite.body.moveLeft(this.moveSpeed);
+                this.sprite.body.moveLeft(this.moveSpeed * 1.5);
             } else if (this.targetPerson !== null) {
                 this.hunger -= 0.67;
                 this.targetPerson.die();
@@ -111,7 +118,17 @@ class Person {
             this.die();
         }
 
-        if (this.build !== null && this.hunger < 0.5) {
+        if (this.targetPoint !== null) {
+            if (this.targetPoint.x - this.sprite.x > this.sprite.width) {
+                this.sprite.body.moveRight(this.moveSpeed * 1.2);
+            } else if (this.targetPoint.x - this.sprite.x < -this.sprite.width) {
+                this.sprite.body.moveLeft(this.moveSpeed * 1.2);
+            } else {
+                this.targetPoint = null;
+                this.newPerson = new Person(this.sprite.x, this.sprite.y, this.game);
+                this.newPerson.sprite.body.moveUp(400);
+            }
+        } else if (this.build !== null && this.targetPerson === null && this.targetFarm === null) {
             this.currentlyWorking = false;
             if (this.build.getX() * TILE_SIZE - this.sprite.x > TILE_SIZE) {
                 this.sprite.body.moveRight(this.moveSpeed);
@@ -126,13 +143,13 @@ class Person {
                 this.build = null;
                 this.sprite.body.velocity.x = 0;
             }
-        } else {
+        } else if (this.targetPerson === null && this.targetFarm === null) {
             var time = this.game.time.totalElapsedSeconds();
             if (time - this.directionChangeTimeCurrent > this.directionChangeTime) {
                 this.directionChangeTimeCurrent = time;
                 this.direction = Math.round(Math.random() * 3 - 1.5);
             }
-            this.sprite.body.velocity.x = this.direction * this.moveSpeed;
+            //this.sprite.body.velocity.x = this.direction * this.moveSpeed;
         }
         this.updateAnimations();
 
