@@ -1,5 +1,5 @@
 class Person {
-    private static HUNGER_INCREASE_FREQ = 0.02;
+    private static HUNGER_INCREASE_FREQ = 0.1;
 
     private game: Phaser.Game;
     private currentlyWorking: boolean;
@@ -9,8 +9,8 @@ class Person {
     public build: Build;
     public moveSpeed: number;
     public dead: boolean;
-    public reallyHungry: boolean;
     public targetFarm: Phaser.Sprite;
+    public targetPerson: Person;
 
     public directionChangeTimeCurrent: number = 0;
     public directionChangeTime: number = 1;
@@ -19,6 +19,7 @@ class Person {
     public constructor(x: number, y: number, game: Phaser.Game) {
         this.game = game;
         this.targetFarm = null;
+        this.targetPerson = null;
         this.sprite = this.game.add.sprite(x, y, "person");
         this.game.physics.p2.enableBody(this.sprite, false);
         this.sprite.body.setRectangle(1, 1);
@@ -26,14 +27,14 @@ class Person {
         this.sprite.body.fixedRotation = true;
         this.sprite.body.onBeginContact.add(function(other: Phaser.Physics.P2.Body) {
             if (other !== null && other.dynamic) {
-                this.velocity.y = -100;
-                this.velocity.x = (Math.random() * 2 - 1) * 100;
+                this.sprite.body.velocity.y = -100;
+                this.sprite.body.velocity.x = (Math.random() * 2 - 1) * 100;
             }
-        }, this.sprite.body);
+        }, this);
 
         this.sprite.animations.add("idle", [0], 1, false);
-        this.sprite.animations.add("walk", [0, 1, 0, 2], 16, true);
-        this.sprite.animations.add("work", [3, 4], 16, true);
+        this.sprite.animations.add("walk", [0, 1, 0, 2], 12, true);
+        this.sprite.animations.add("work", [3, 4], 12, true);
         this.sprite.animations.add("dead", [5], 1, false);
 
         this.moveSpeed = 100;
@@ -47,8 +48,30 @@ class Person {
         this.build = build;
     }
 
-    public updateHunger(farms: Phaser.Sprite[]): void {
-        if (this.hunger > 0.5) {
+    public updateHunger(farms: Phaser.Sprite[], people: Person[]): void {
+        if (this.hunger > 0.67 && people.length > 0) {
+            if (this.targetPerson === null) {
+                var dist = 1000;
+                var bestPerson = null;
+                for (var i = 0; i < people.length; i++) {
+                    var person = people[i];
+                    var newDist = Math.abs(person.sprite.x - this.sprite.x);
+                    if (newDist < dist && newDist > 1) {
+                        dist = newDist;
+                        bestPerson = person;
+                    }
+                }
+                this.targetPerson = bestPerson;
+            } else if (this.targetPerson.sprite.x - this.sprite.x > TILE_SIZE) {
+                this.sprite.body.moveRight(this.moveSpeed);
+            } else if (this.targetPerson.sprite.x - this.sprite.x < -TILE_SIZE) {
+                this.sprite.body.moveLeft(this.moveSpeed);
+            } else if (this.targetPerson !== null) {
+                this.hunger -= 0.67;
+                this.targetPerson.die();
+                this.targetPerson = null;
+            }
+        } else if (this.hunger > 0.5 && farms.length > 0) {
             if (this.targetFarm === null) {
                 var dist = 1000;
                 var bestFarm = null;
@@ -77,6 +100,10 @@ class Person {
     public update(): void {
         if (this.dead) {
             return;
+        }
+        if (this.sprite === null) {
+            console.log("found a null sprite?");
+            this.die();
         }
 
         this.hunger += Person.HUNGER_INCREASE_FREQ * this.game.time.physicsElapsed;
@@ -116,6 +143,9 @@ class Person {
 
     public die(): void {
         this.sprite.kill();
+        if (this.build !== null) {
+            this.build.beingWorkedOn = false;
+        }
         this.dead = true;
     }
 

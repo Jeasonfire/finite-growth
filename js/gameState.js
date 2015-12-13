@@ -9,6 +9,7 @@ var TileType;
 })(TileType || (TileType = {}));
 var GameState = (function () {
     function GameState() {
+        this.lastReproduction = 0;
         this.averageHunger = 0;
     }
     GameState.prototype.preload = function () {
@@ -49,6 +50,7 @@ var GameState = (function () {
         this.currentTileType = TileType.HOUSE;
         this.people = [];
         this.freePeople = [];
+        this.reproductionRate = 0.1;
         this.renderingBMD = this.game.add.bitmapData(GAME_WIDTH, GAME_HEIGHT);
         this.renderingBMD.addToWorld();
     };
@@ -60,12 +62,12 @@ var GameState = (function () {
         var averageHungerTotal = 0;
         for (var i = 0; i < this.people.length; i++) {
             this.people[i].update();
-            this.people[i].updateHunger(this.farms);
+            this.people[i].updateHunger(this.farms, this.people);
             averageHungerTotal += this.people[i].getHunger();
         }
         this.averageHunger = averageHungerTotal / this.people.length;
         for (var i = 0; i < this.builds.length; i++) {
-            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding() && (this.averageHunger < 0.4 || this.builds[i].getTileType() == TileType.FARM)) {
+            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding()) {
                 this.updateFreePeople();
                 if (this.freePeople.length > 0) {
                     this.freePeople[Math.floor(Math.random() * this.freePeople.length)].startWorkingOn(this.builds[i]);
