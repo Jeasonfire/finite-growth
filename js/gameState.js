@@ -14,6 +14,7 @@ var GameState = (function () {
     }
     GameState.prototype.preload = function () {
         this.game.load.image("background", "./res/img/background.png");
+        this.game.load.image("backgroundHouse", "./res/img/backgroundHouse.png");
         this.game.load.image("ground", "./res/img/ground.png");
         this.game.load.image("buildProgress", "./res/img/buildProgress.png");
         this.game.load.image("hungerFull", "./res/img/hungerFull.png");
@@ -30,9 +31,14 @@ var GameState = (function () {
         this.game.physics.p2.gravity.y = 900;
         this.game.input.activePointer.leftButton.onDown.add(this.leftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
-        var background = this.game.add.sprite(0, 0, "background");
-        background.fixedToCamera = true;
-        this.ground = this.game.add.group();
+        this.backgroundGroup = this.game.add.group();
+        this.midgroundGroup = this.game.add.group();
+        this.foregroundGroup = this.game.add.group();
+        this.backgroundSprite = this.game.make.sprite(0, 0, "background");
+        this.backgroundSprite.fixedToCamera = true;
+        this.backgroundGroup.add(this.backgroundSprite);
+        this.ground = this.game.make.group();
+        this.midgroundGroup.add(this.ground);
         this.tileElevation = 15;
         for (var i = 0; i < WORLD_WIDTH / TILE_SIZE; i++) {
             this.createGround(i, this.tileElevation);
@@ -58,26 +64,35 @@ var GameState = (function () {
         this.createPerson(450, 330);
         this.createPerson(450, 270);
         this.reproductionRate = 0.3;
-        this.renderingBMD = this.game.add.bitmapData(GAME_WIDTH, GAME_HEIGHT);
-        this.renderingBMD.addToWorld();
     };
     GameState.prototype.update = function () {
+        var _this = this;
         this.updateMouseSprite();
         if (this.game.input.activePointer.leftButton.isDown) {
             this.leftClick();
         }
+        this.updateFreePeople();
+        for (var i = 0; i < this.freePeople.length; i++) {
+            var person = this.freePeople[i];
+            var canFarm = this.buildableFarmsAmt() > 0;
+            var isHungry = person.getHunger() > Person.MILDLY_HUNGRY;
+            person.startWorkingOn(this.getNearestBuild(this.builds.filter(function (build) {
+                var isFarm = build.getTileType() == TileType.FARM;
+                var isReachable = build.getTileType() != TileType.HOUSE || _this.houseExistsAt(build.getX(), build.getY() + 1) || _this.groundExistsAt(build.getX(), build.getY() + 1);
+                return !build.beingWorkedOn && isReachable && (!isHungry || !canFarm || isFarm);
+            }), person));
+        }
         var averageHungerTotal = 0;
         var time = this.game.time.totalElapsedSeconds();
-        var newPersonQueue = [];
         for (var i = 0; i < this.people.length; i++) {
             if (this.people[i].dead) {
                 this.people.splice(i, 1);
             }
             else {
                 this.people[i].update(this.farms, this.people);
-                if (this.people[i].newPerson !== null) {
-                    newPersonQueue.push(this.people[i].newPerson);
-                    this.people[i].newPerson = null;
+                if (this.people[i].reproduced) {
+                    this.people[i].reproduced = false;
+                    this.createPerson(this.people[i].sprite.x, this.people[i].sprite.y - this.people[i].sprite.height);
                 }
                 if (this.averageHunger < 0.3 && (time - this.lastReproduction) * this.reproductionRate * (0.7 + Math.random() * 0.3) > 1 && this.people.length < this.houses.length) {
                     var reproduced = this.reproduce(this.people[i]);
@@ -86,18 +101,8 @@ var GameState = (function () {
                 averageHungerTotal += this.people[i].getHunger();
             }
         }
-        for (var i = 0; i < newPersonQueue.length; i++) {
-            this.people.push(newPersonQueue[i]);
-            this.freePeople.push(newPersonQueue[i]);
-        }
         this.averageHunger = averageHungerTotal / this.people.length;
         for (var i = 0; i < this.builds.length; i++) {
-            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding() && (this.averageHunger < 0.5 || this.builds[i].getTileType() == TileType.FARM)) {
-                this.updateFreePeople();
-                if (this.freePeople.length > 0) {
-                    this.freePeople[Math.floor(Math.random() * this.freePeople.length)].startWorkingOn(this.builds[i]);
-                }
-            }
             if (this.builds[i].isDoneBuilding()) {
                 this.finishBuild(this.builds[i]);
                 this.builds.splice(i, 1);
@@ -106,6 +111,36 @@ var GameState = (function () {
         for (var i = 0; i < this.houses.length; i++) {
             this.updateHouse(this.houses[i]);
         }
+    };
+    GameState.prototype.getNearestBuild = function (builds, person) {
+        if (builds.length == 0) {
+            return null;
+        }
+        else {
+            function distBetween(build) {
+                return Math.abs(build.getX() * TILE_SIZE - person.sprite.x);
+            }
+            var bestCandidate = builds[0];
+            var bestDist = distBetween(bestCandidate);
+            for (var i = 1; i < builds.length; i++) {
+                var newCandidate = builds[i];
+                var newDist = distBetween(newCandidate);
+                if (newDist < bestDist) {
+                    bestDist = newDist;
+                    bestCandidate = newCandidate;
+                }
+            }
+            return bestCandidate;
+        }
+    };
+    GameState.prototype.buildableFarmsAmt = function () {
+        var result = 0;
+        for (var i = 0; i < this.builds.length; i++) {
+            if (!this.builds[i].beingWorkedOn && this.builds[i].getTileType() == TileType.FARM) {
+                result++;
+            }
+        }
+        return result;
     };
     GameState.prototype.reproduce = function (person) {
         var index = Math.floor(Math.random() * this.people.length);
@@ -123,7 +158,7 @@ var GameState = (function () {
     GameState.prototype.updateFreePeople = function () {
         for (var i = 0; i < this.people.length; i++) {
             var freeIndex = this.freePeople.indexOf(this.people[i]);
-            if (this.people[i].build === null && freeIndex == -1) {
+            if ((this.people[i].build === null || !this.people[i].build.beingWorkedOn) && freeIndex == -1) {
                 this.freePeople.push(this.people[i]);
             }
             if (this.people[i].build !== null && freeIndex != -1) {
@@ -151,11 +186,12 @@ var GameState = (function () {
         var tileOver = this.buildExistsAt(xTile, yTile) || this.houseExistsAt(xTile, yTile) || this.farmExistsAt(xTile, yTile) || this.groundExistsAt(xTile, yTile);
         var tileUnder = this.buildExistsAt(xTile, yTile + 1, TileType.HOUSE) || this.houseExistsAt(xTile, yTile + 1) || groundUnder;
         if (!tileOver && tileUnder && (groundUnder || tileType != TileType.FARM)) {
-            var sprite = this.game.add.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, build.spriteType());
+            var sprite = this.game.make.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, build.spriteType());
             sprite.anchor.setTo(0.5, 0.5);
             sprite.frame = build.constructionFrame();
             build.setSprite(sprite, this.game);
             this.builds.push(build);
+            this.midgroundGroup.add(sprite);
             return build;
         }
         else {
@@ -166,15 +202,16 @@ var GameState = (function () {
         var x = build.getX();
         var y = build.getY();
         build.finish();
-        var house = this.game.add.sprite(x * TILE_SIZE, y * TILE_SIZE, build.spriteType());
-        house.anchor.setTo(0.5, 0.5);
+        var builtThing = this.game.make.sprite(x * TILE_SIZE, y * TILE_SIZE, build.spriteType());
+        builtThing.anchor.setTo(0.5, 0.5);
         if (build.getTileType() == TileType.HOUSE) {
-            this.houses.push(house);
+            this.houses.push(builtThing);
         }
         else {
-            this.farms.push(house);
+            this.farms.push(builtThing);
         }
-        return house;
+        this.midgroundGroup.add(builtThing);
+        return builtThing;
     };
     GameState.prototype.createPerson = function (x, y) {
         var person = new Person(x, y, this.game);
@@ -182,6 +219,7 @@ var GameState = (function () {
         person.sprite.body.velocity.y = -500;
         this.people.push(person);
         this.freePeople.push(person);
+        this.foregroundGroup.add(person.sprite);
         return person;
     };
     GameState.prototype.updateHouse = function (house) {
@@ -207,7 +245,7 @@ var GameState = (function () {
     };
     GameState.prototype.createGround = function (xTile, yTile) {
         if (yTile == this.tileElevation && !this.groundExistsAt(xTile, yTile)) {
-            var pieceOfGround = this.ground.add(this.game.add.sprite(Math.floor(xTile) * TILE_SIZE, Math.floor(yTile) * TILE_SIZE, "ground"));
+            var pieceOfGround = this.ground.add(this.game.make.sprite(Math.floor(xTile) * TILE_SIZE, Math.floor(yTile) * TILE_SIZE, "ground"));
             pieceOfGround.anchor.setTo(0.5);
             this.game.physics.p2.enableBody(pieceOfGround, false);
             pieceOfGround.body.kinematic = false;
