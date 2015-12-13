@@ -1,7 +1,8 @@
 var Build = (function () {
-    function Build(x, y) {
+    function Build(x, y, tileType) {
         this.x = Math.floor(x);
         this.y = Math.floor(y);
+        this.tileType = tileType;
         this.progress = 0;
         this.beingWorkedOn = false;
     }
@@ -17,14 +18,23 @@ var Build = (function () {
     };
     Build.prototype.updateSprite = function () {
         var progress = Math.min(1, Math.max(0, this.progress));
-        this.sprite.animations.frame = Math.floor(4 + progress * 6);
+        this.sprite.animations.frame = Math.floor(this.constructionFrame() + progress * 6);
     };
     Build.prototype.finish = function () {
         this.sprite.destroy();
         this.progress = 1;
     };
+    Build.prototype.constructionFrame = function () {
+        return this.tileType == TileType.HOUSE ? 4 : 1;
+    };
+    Build.prototype.spriteType = function () {
+        return this.tileType == TileType.HOUSE ? "house" : "farm";
+    };
     Build.prototype.isDoneBuilding = function () {
         return this.progress >= 1;
+    };
+    Build.prototype.getTileType = function () {
+        return this.tileType;
     };
     Build.prototype.getX = function () {
         return this.x;

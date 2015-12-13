@@ -4,13 +4,15 @@ class Build {
     private x: number;
     private y: number;
     private sprite: Phaser.Sprite;
+    private tileType: TileType;
 
     public progress: number;
     public beingWorkedOn: boolean;
 
-    public constructor(x: number, y: number) {
+    public constructor(x: number, y: number, tileType: TileType) {
         this.x = Math.floor(x);
         this.y = Math.floor(y);
+        this.tileType = tileType;
         this.progress = 0;
         this.beingWorkedOn = false;
     }
@@ -29,7 +31,7 @@ class Build {
 
     private updateSprite(): void {
         var progress = Math.min(1, Math.max(0, this.progress));
-        this.sprite.animations.frame = Math.floor(4 + progress * 6);
+        this.sprite.animations.frame = Math.floor(this.constructionFrame() + progress * 6);
     }
 
     public finish(): void {
@@ -37,8 +39,20 @@ class Build {
         this.progress = 1;
     }
 
+    public constructionFrame(): number {
+        return this.tileType == TileType.HOUSE ? 4 : 1;
+    }
+
+    public spriteType(): string {
+        return this.tileType == TileType.HOUSE ? "house" : "farm";
+    }
+
     public isDoneBuilding(): boolean {
         return this.progress >= 1;
+    }
+
+    public getTileType(): TileType {
+        return this.tileType;
     }
 
     public getX(): number {

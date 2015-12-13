@@ -1,24 +1,28 @@
 var TILE_SIZE = 32;
 var WORLD_WIDTH = 900;
-var CAMERA_MOVEMENT_MARGIN = 100;
+var MAX_Y_SPEED = 200;
 var TileType;
 (function (TileType) {
     TileType[TileType["HOUSE"] = 0] = "HOUSE";
     TileType[TileType["GROUND"] = 1] = "GROUND";
+    TileType[TileType["FARM"] = 2] = "FARM";
 })(TileType || (TileType = {}));
 var GameState = (function () {
     function GameState() {
+        this.averageHunger = 0;
     }
     GameState.prototype.preload = function () {
         this.game.load.image("background", "./res/img/background.png");
         this.game.load.image("ground", "./res/img/ground.png");
         this.game.load.image("buildProgress", "./res/img/buildProgress.png");
         this.game.load.spritesheet("house", "./res/img/house.png", 32, 32);
-        this.game.load.spritesheet("person", "./res/img/person.png", 8, 8);
+        this.game.load.spritesheet("farm", "./res/img/farm.png", 32, 32);
+        this.game.load.spritesheet("person", "./res/img/person.png", 12, 12);
     };
     GameState.prototype.create = function () {
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
+        this.game.physics.p2.friction = 1;
         this.game.input.activePointer.leftButton.onDown.add(this.leftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
         var background = this.game.add.sprite(0, 0, "background");
@@ -30,25 +34,38 @@ var GameState = (function () {
         }
         this.builds = [];
         this.houses = [];
-        var build = this.startConstruction(Math.floor(Math.floor(900 / TILE_SIZE) / 2), this.tileElevation - 1);
-        this.finishBuild(build);
+        this.farms = [];
+        var house = this.startConstruction(Math.floor(Math.floor(900 / TILE_SIZE) / 2), this.tileElevation - 1, TileType.HOUSE);
+        house.progress = 1;
+        var farm = this.startConstruction(Math.floor(Math.floor(900 / TILE_SIZE) / 2) - 1, this.tileElevation - 1, TileType.FARM);
+        farm.progress = 1;
         this.fadedHouseSprite = this.game.add.sprite(0, 0, "house");
         this.fadedHouseSprite.anchor.setTo(0.5);
         this.fadedHouseSprite.alpha = 0.4;
-        var firstPerson = new Person(420, 400, this.game);
-        this.people = [firstPerson];
-        this.freePeople = [firstPerson];
+        this.fadedFarmSprite = this.game.add.sprite(0, 0, "farm");
+        this.fadedFarmSprite.anchor.setTo(0.5);
+        this.fadedFarmSprite.alpha = 0.4;
+        this.fadedFarmSprite.visible = false;
+        this.currentTileType = TileType.HOUSE;
+        this.people = [];
+        this.freePeople = [];
+        this.renderingBMD = this.game.add.bitmapData(GAME_WIDTH, GAME_HEIGHT);
+        this.renderingBMD.addToWorld();
     };
     GameState.prototype.update = function () {
         this.updateMouseSprite();
         if (this.game.input.activePointer.leftButton.isDown) {
             this.leftClick();
         }
+        var averageHungerTotal = 0;
         for (var i = 0; i < this.people.length; i++) {
             this.people[i].update();
+            this.people[i].updateHunger(this.farms);
+            averageHungerTotal += this.people[i].getHunger();
         }
+        this.averageHunger = averageHungerTotal / this.people.length;
         for (var i = 0; i < this.builds.length; i++) {
-            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding()) {
+            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding() && (this.averageHunger < 0.4 || this.builds[i].getTileType() == TileType.FARM)) {
                 this.updateFreePeople();
                 if (this.freePeople.length > 0) {
                     this.freePeople[Math.floor(Math.random() * this.freePeople.length)].startWorkingOn(this.builds[i]);
@@ -75,8 +92,12 @@ var GameState = (function () {
         }
     };
     GameState.prototype.updateMouseSprite = function () {
-        this.fadedHouseSprite.x = this.mouseTileX() * TILE_SIZE;
-        this.fadedHouseSprite.y = this.mouseTileY() * TILE_SIZE;
+        var x = this.mouseTileX() * TILE_SIZE;
+        var y = this.mouseTileY() * TILE_SIZE;
+        this.fadedHouseSprite.x = x;
+        this.fadedHouseSprite.y = y;
+        this.fadedFarmSprite.x = x;
+        this.fadedFarmSprite.y = y;
     };
     GameState.prototype.mouseTileX = function () {
         return Math.floor((this.game.input.activePointer.x + TILE_SIZE * 0.5 + this.game.camera.x) / TILE_SIZE);
@@ -84,15 +105,15 @@ var GameState = (function () {
     GameState.prototype.mouseTileY = function () {
         return Math.floor((this.game.input.activePointer.y + TILE_SIZE * 0.5 + this.game.camera.y) / TILE_SIZE);
     };
-    GameState.prototype.startConstruction = function (xTile, yTile) {
-        var build = new Build(xTile, yTile);
+    GameState.prototype.startConstruction = function (xTile, yTile, tileType) {
+        var build = new Build(xTile, yTile, tileType);
         var groundUnder = this.groundExistsAt(xTile, yTile + 1);
-        var tileOver = this.buildExistsAt(xTile, yTile) || this.houseExistsAt(xTile, yTile) || this.groundExistsAt(xTile, yTile);
-        var tileUnder = this.buildExistsAt(xTile, yTile + 1) || this.houseExistsAt(xTile, yTile + 1) || groundUnder;
-        if (!tileOver && tileUnder) {
-            var sprite = this.game.add.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, "house");
+        var tileOver = this.buildExistsAt(xTile, yTile) || this.houseExistsAt(xTile, yTile) || this.farmExistsAt(xTile, yTile) || this.groundExistsAt(xTile, yTile);
+        var tileUnder = this.buildExistsAt(xTile, yTile + 1, TileType.HOUSE) || this.houseExistsAt(xTile, yTile + 1) || groundUnder;
+        if (!tileOver && tileUnder && (groundUnder || tileType != TileType.FARM)) {
+            var sprite = this.game.add.sprite(build.getX() * TILE_SIZE, build.getY() * TILE_SIZE, build.spriteType());
             sprite.anchor.setTo(0.5, 0.5);
-            sprite.frame = 4;
+            sprite.frame = build.constructionFrame();
             build.setSprite(sprite, this.game);
             this.builds.push(build);
             return build;
@@ -105,17 +126,30 @@ var GameState = (function () {
         var x = build.getX();
         var y = build.getY();
         build.finish();
-        var house = this.game.add.sprite(x * TILE_SIZE, y * TILE_SIZE, "house");
+        var house = this.game.add.sprite(x * TILE_SIZE, y * TILE_SIZE, build.spriteType());
         house.anchor.setTo(0.5, 0.5);
-        this.houses.push(house);
+        if (build.getTileType() == TileType.HOUSE) {
+            this.houses.push(house);
+            this.createPerson(x * TILE_SIZE, y * TILE_SIZE);
+        }
+        else {
+            this.farms.push(house);
+        }
         return house;
+    };
+    GameState.prototype.createPerson = function (x, y) {
+        var person = new Person(x, y, this.game);
+        person.sprite.body.velocity.x = Math.sin(Math.random() * Math.PI * 2) * 100;
+        person.sprite.body.velocity.y = -500;
+        this.people.push(person);
+        this.freePeople.push(person);
     };
     GameState.prototype.updateHouse = function (house) {
         var x = Math.floor(house.x / TILE_SIZE);
         var y = Math.floor(house.y / TILE_SIZE);
         var groundUnder = this.groundExistsAt(x, y + 1);
-        var tileUnder = this.buildExistsAt(x, y + 1) || this.houseExistsAt(x, y + 1) || groundUnder;
-        var houseOnTop = this.buildExistsAt(x, y - 1) || this.houseExistsAt(x, y - 1);
+        var tileUnder = this.buildExistsAt(x, y + 1) || this.houseExistsAt(x, y + 1) || this.farmExistsAt(x, y + 1) || groundUnder;
+        var houseOnTop = this.buildExistsAt(x, y - 1) || this.houseExistsAt(x, y - 1) || this.farmExistsAt(x, y - 1);
         var houseUnder = tileUnder && !groundUnder;
         var houseType = 0;
         if (houseUnder && houseOnTop) {
@@ -140,9 +174,9 @@ var GameState = (function () {
             pieceOfGround.body.dynamic = false;
         }
     };
-    GameState.prototype.buildExistsAt = function (x, y) {
+    GameState.prototype.buildExistsAt = function (x, y, tileType) {
         for (var i = 0; i < this.builds.length; i++) {
-            if (this.builds[i].getX() == x && this.builds[i].getY() == y) {
+            if (this.builds[i].getX() == x && this.builds[i].getY() == y && (tileType === undefined || this.builds[i].getTileType() == tileType)) {
                 return true;
             }
         }
@@ -151,6 +185,14 @@ var GameState = (function () {
     GameState.prototype.houseExistsAt = function (x, y) {
         for (var i = 0; i < this.houses.length; i++) {
             if (Math.floor(this.houses[i].x / TILE_SIZE) == x && Math.floor(this.houses[i].y / TILE_SIZE) == y) {
+                return true;
+            }
+        }
+        return false;
+    };
+    GameState.prototype.farmExistsAt = function (x, y) {
+        for (var i = 0; i < this.farms.length; i++) {
+            if (Math.floor(this.farms[i].x / TILE_SIZE) == x && Math.floor(this.farms[i].y / TILE_SIZE) == y) {
                 return true;
             }
         }
@@ -167,9 +209,19 @@ var GameState = (function () {
     GameState.prototype.leftClick = function () {
         var mouseX = this.mouseTileX();
         var mouseY = this.mouseTileY();
-        var build = this.startConstruction(mouseX, mouseY);
+        var build = this.startConstruction(mouseX, mouseY, this.currentTileType);
     };
     GameState.prototype.rightClick = function () {
+        if (this.currentTileType == TileType.FARM) {
+            this.currentTileType = TileType.HOUSE;
+            this.fadedFarmSprite.visible = false;
+            this.fadedHouseSprite.visible = true;
+        }
+        else if (this.currentTileType == TileType.HOUSE) {
+            this.currentTileType = TileType.FARM;
+            this.fadedHouseSprite.visible = false;
+            this.fadedFarmSprite.visible = true;
+        }
     };
     return GameState;
 })();
