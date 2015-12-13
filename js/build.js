@@ -12,7 +12,14 @@ var Build = (function () {
     };
     Build.prototype.updateTimer = function (time) {
         if (this.progress < 1) {
-            this.progress += time.physicsElapsed * Build.BUILD_PARTS_FREQ;
+            switch (this.tileType) {
+                case TileType.HOUSE:
+                    this.progress += time.physicsElapsed * Build.BUILD_HOUSE_PARTS_FREQ;
+                    break;
+                case TileType.FARM:
+                    this.progress += time.physicsElapsed * Build.BUILD_FARM_PARTS_FREQ;
+                    break;
+            }
         }
         this.updateSprite();
     };
@@ -42,6 +49,7 @@ var Build = (function () {
     Build.prototype.getY = function () {
         return this.y;
     };
-    Build.BUILD_PARTS_FREQ = 0.2;
+    Build.BUILD_HOUSE_PARTS_FREQ = 0.1;
+    Build.BUILD_FARM_PARTS_FREQ = 0.35;
     return Build;
 })();

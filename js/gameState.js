@@ -23,7 +23,6 @@ var GameState = (function () {
     GameState.prototype.create = function () {
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
-        this.game.physics.p2.friction = 1;
         this.game.input.activePointer.leftButton.onDown.add(this.leftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
         var background = this.game.add.sprite(0, 0, "background");
@@ -53,7 +52,7 @@ var GameState = (function () {
         this.createPerson(450, 300);
         this.createPerson(450, 330);
         this.createPerson(450, 270);
-        this.reproductionRate = 0.2;
+        this.reproductionRate = 0.3;
         this.renderingBMD = this.game.add.bitmapData(GAME_WIDTH, GAME_HEIGHT);
         this.renderingBMD.addToWorld();
     };
@@ -72,7 +71,7 @@ var GameState = (function () {
                 newPersonQueue.push(this.people[i].newPerson);
                 this.people[i].newPerson = null;
             }
-            if (this.averageHunger < 0.3 && (time - this.lastReproduction) * this.reproductionRate * (0.7 + Math.random() * 0.3) > 1 && this.people.length < this.houses.length) {
+            if (this.averageHunger < 0.45 && (time - this.lastReproduction) * this.reproductionRate * (0.7 + Math.random() * 0.3) > 1 && this.people.length < this.houses.length) {
                 var reproduced = this.reproduce(this.people[i]);
                 this.lastReproduction = time;
             }
@@ -83,7 +82,7 @@ var GameState = (function () {
         }
         this.averageHunger = averageHungerTotal / this.people.length;
         for (var i = 0; i < this.builds.length; i++) {
-            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding()) {
+            if (!this.builds[i].beingWorkedOn && !this.builds[i].isDoneBuilding() && (this.averageHunger < 0.5 || this.builds[i].getTileType() == TileType.FARM)) {
                 this.updateFreePeople();
                 if (this.freePeople.length > 0) {
                     this.freePeople[Math.floor(Math.random() * this.freePeople.length)].startWorkingOn(this.builds[i]);

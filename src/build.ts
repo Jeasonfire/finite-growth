@@ -1,5 +1,6 @@
 class Build {
-    private static BUILD_PARTS_FREQ = 0.2;
+    private static BUILD_HOUSE_PARTS_FREQ = 0.1;
+    private static BUILD_FARM_PARTS_FREQ = 0.35;
 
     private x: number;
     private y: number;
@@ -24,7 +25,14 @@ class Build {
 
     public updateTimer(time: Phaser.Time): void {
         if (this.progress < 1) {
-            this.progress += time.physicsElapsed * Build.BUILD_PARTS_FREQ;
+            switch (this.tileType) {
+            case TileType.HOUSE:
+                this.progress += time.physicsElapsed * Build.BUILD_HOUSE_PARTS_FREQ;
+                break;
+            case TileType.FARM:
+                this.progress += time.physicsElapsed * Build.BUILD_FARM_PARTS_FREQ;
+                break;
+            }
         }
         this.updateSprite();
     }

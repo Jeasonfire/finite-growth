@@ -37,7 +37,11 @@ var Person = (function () {
         if (this.targetPoint !== null) {
             return;
         }
-        if (this.hunger > 0.67 && people.length > 0) {
+        if (this.hunger > 0.67 && people.length > 1 && farms.length == 0) {
+            if (this.build !== null) {
+                this.build.beingWorkedOn = false;
+                this.build = null;
+            }
             if (this.targetPerson === null) {
                 var dist = 1000;
                 var bestPerson = null;
@@ -64,6 +68,10 @@ var Person = (function () {
             }
         }
         else if (this.hunger > 0.5 && farms.length > 0) {
+            if (this.build !== null && this.build.getTileType() == TileType.HOUSE) {
+                this.build.beingWorkedOn = false;
+                this.build = null;
+            }
             if (this.targetFarm === null) {
                 var dist = 1000;
                 var bestFarm = null;
@@ -86,7 +94,7 @@ var Person = (function () {
             else {
                 this.hunger -= 0.5;
                 farms.splice(farms.indexOf(this.targetFarm), 1);
-                this.targetFarm.destroy();
+                this.targetFarm.kill();
                 this.targetFarm = null;
             }
         }
@@ -103,6 +111,9 @@ var Person = (function () {
         if (this.hunger >= 1) {
             this.die();
         }
+        if (Math.abs(this.sprite.body.velocity.y) < 5) {
+            this.sprite.body.velocity.x = 0;
+        }
         if (this.targetPoint !== null) {
             if (this.targetPoint.x - this.sprite.x > this.sprite.width) {
                 this.sprite.body.moveRight(this.moveSpeed * 1.2);
@@ -116,7 +127,7 @@ var Person = (function () {
                 this.newPerson.sprite.body.moveUp(400);
             }
         }
-        else if (this.build !== null && this.targetPerson === null && this.targetFarm === null) {
+        else if (this.build !== null && (this.hunger < 0.5 || (this.targetFarm === null && this.targetPerson === null))) {
             this.currentlyWorking = false;
             if (this.build.getX() * TILE_SIZE - this.sprite.x > TILE_SIZE) {
                 this.sprite.body.moveRight(this.moveSpeed);
