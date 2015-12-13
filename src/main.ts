@@ -1,3 +1,5 @@
+//var gui = new dat.GUI();
+//gui.close();
 
 var GAME_WIDTH = 900;
 var GAME_HEIGHT = 600;

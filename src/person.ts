@@ -5,7 +5,7 @@ class Person {
 
     private game: Phaser.Game;
     private currentlyWorking: boolean;
-    private hunger: number = 0;
+    private hunger: number;
 
     private eating: boolean = false;
     private directionChangeTimeCurrent: number = 0;
@@ -31,6 +31,9 @@ class Person {
     public targetPoint: Phaser.Point;
     public reproduced: boolean = false;
 
+    public status: string;
+    //public guiController: dat.GUIController;
+
     public constructor(x: number, y: number, game: Phaser.Game) {
         this.game = game;
         this.targetFarm = null;
@@ -53,6 +56,7 @@ class Person {
         this.sprite.animations.add("work", [3, 4], 12, true);
         this.sprite.animations.add("eat", [5, 0], 14, false);
 
+        this.hunger = 0.5;
         this.hungerBarEmpty = this.game.add.sprite(-this.sprite.width / 2, -14, "hungerEmpty");
         this.hungerBarEmpty.parent = this.sprite;
         this.hungerBarFull = this.game.add.sprite(-this.sprite.width / 2, -14, "hungerFull");
@@ -74,6 +78,9 @@ class Person {
         this.currentlyWorking = false;
         this.build = null;
         this.dead = false;
+
+        this.status = "just created";
+        //this.guiController = gui.add(this, "status").listen();
     }
 
     public startWorkingOn(build: Build): void {
@@ -104,6 +111,7 @@ class Person {
         if (Math.abs(this.sprite.body.velocity.y) < 10) {
             this.sprite.body.velocity.x = 0;
         }
+        this.status = "not even idling!";
         if (this.targetPoint !== null) {
             if (this.targetPoint.x - this.sprite.x > this.sprite.width / 1.8) {
                 this.sprite.body.moveRight(this.moveSpeed * 1.2);
@@ -114,6 +122,7 @@ class Person {
                 this.heartEmitter.start(true, this.heartDuration, null, this.heartAmount);
                 this.reproduced = Math.random() < 0.65;
             }
+            this.status = "searching for target";
         } else if (this.hunger > Person.VERY_HUNGRY && people.length > 1 && farms.length == 0) {
             if (this.build !== null) {
                 this.build.beingWorkedOn = false;
@@ -143,10 +152,17 @@ class Person {
                 this.targetPerson = null;
                 this.eating = false;
             }
+            this.status = "eating people";
+        } else if (this.hunger > Person.VERY_HUNGRY && people.length == 1 && farms.length == 0 && this.targetPerson !== null) {
+            this.targetPerson = null;
+            this.status = "forgetting about target";
         } else if (this.hunger > Person.MILDLY_HUNGRY && farms.length > 0) {
             if (this.build !== null && this.build.getTileType() == TileType.HOUSE) {
                 this.build.beingWorkedOn = false;
                 this.build = null;
+            }
+            if (this.targetFarm !== null && !this.targetFarm.alive) {
+                this.targetFarm = null;
             }
             if (this.targetFarm === null) {
                 var dist = 1000;
@@ -170,6 +186,10 @@ class Person {
                 farms.splice(farms.indexOf(this.targetFarm), 1);
                 this.targetFarm = null;
             }
+            this.status = "finding a farm";
+        } else if (this.hunger > Person.MILDLY_HUNGRY && farms.length == 0 && this.targetFarm !== null) {
+            this.targetFarm = null;
+            this.status = "forgetting about a farm";
         } else if (this.build !== null && (this.hunger < Person.MILDLY_HUNGRY || (this.targetFarm === null && this.targetPerson === null))) {
             this.build.beingWorkedOn = true;
             if (this.build.getX() * TILE_SIZE - this.sprite.x > TILE_SIZE) {
@@ -184,6 +204,7 @@ class Person {
             if (this.build.isDoneBuilding()) {
                 this.build = null;
             }
+            this.status = "building";
         } else if (this.targetPerson === null && this.targetFarm === null) {
             var time = this.game.time.totalElapsedSeconds();
             if (time - this.directionChangeTimeCurrent > this.directionChangeTime) {
@@ -191,6 +212,7 @@ class Person {
                 this.direction = Math.round(Math.random() * 3 - 1.5);
             }
             this.sprite.body.velocity.x = this.direction * this.moveSpeed / 3;
+            this.status = "idling";
         }
         this.updateAnimations();
         this.updateHungerBarPosition();

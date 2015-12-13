@@ -61,6 +61,7 @@ class GameState {
         this.backgroundSprite = this.game.make.sprite(0, 0, "background");
         this.backgroundSprite.fixedToCamera = true;
         this.backgroundGroup.add(this.backgroundSprite);
+        this.backgroundHouses = [];
 
         this.ground = this.game.make.group();
         this.midgroundGroup.add(this.ground);
@@ -70,9 +71,11 @@ class GameState {
         }
 
         this.builds = [];
-
         this.houses = [];
         this.farms = [];
+        //gui.add(this.builds, 'length').listen();
+        //gui.add(this.houses, 'length').listen();
+        //gui.add(this.farms, 'length').listen();
         var house = this.startConstruction(Math.floor(Math.floor(900 / TILE_SIZE) / 2), this.tileElevation - 1, TileType.HOUSE);
         house.progress = 1;
         var farm = this.startConstruction(Math.floor(Math.floor(900 / TILE_SIZE) / 2) - 1, this.tileElevation - 1,  TileType.FARM);
@@ -81,11 +84,11 @@ class GameState {
         this.fadedHouseSprite = this.game.add.sprite(0, 0, "house");
         this.fadedHouseSprite.anchor.setTo(0.5);
         this.fadedHouseSprite.alpha = 0.4;
+        this.fadedHouseSprite.visible = false;
         this.fadedFarmSprite = this.game.add.sprite(0, 0, "farm");
         this.fadedFarmSprite.anchor.setTo(0.5);
         this.fadedFarmSprite.alpha = 0.4;
-        this.fadedFarmSprite.visible = false;
-        this.currentTileType = TileType.HOUSE;
+        this.currentTileType = TileType.FARM;
 
         this.people = [];
         this.freePeople = [];
@@ -94,6 +97,8 @@ class GameState {
         this.createPerson(450, 270);
 
         this.reproductionRate = 0.3;
+
+        this.addHouseToBackground();
     }
 
     public update(): void {
@@ -105,13 +110,16 @@ class GameState {
         this.updateFreePeople();
         for (var i = 0; i < this.freePeople.length; i++) {
             var person = this.freePeople[i];
-            var canFarm = this.buildableFarmsAmt() > 0;
-            var isHungry = person.getHunger() > Person.MILDLY_HUNGRY;
-            person.startWorkingOn(this.getNearestBuild(this.builds.filter((build: Build) => {
-                var isFarm = build.getTileType() == TileType.FARM;
-                var isReachable = build.getTileType() != TileType.HOUSE || this.houseExistsAt(build.getX(), build.getY() + 1) || this.groundExistsAt(build.getX(), build.getY() + 1);
-                return !build.beingWorkedOn && isReachable && (!isHungry || !canFarm || isFarm);
-            }), person));
+            if (person.dead) {
+                this.freePeople.splice(i, 1);
+            } else {
+                var hungry = person.getHunger() > Person.MILDLY_HUNGRY;
+                person.startWorkingOn(this.getNearestBuild(this.builds.filter((build: Build) => {
+                    var notHungryOrFarm = !hungry || build.getTileType() == TileType.FARM;
+                    var isReachable = build.getTileType() != TileType.HOUSE || this.houseExistsAt(build.getX(), build.getY() + 1) || this.groundExistsAt(build.getX(), build.getY() + 1);
+                    return !build.beingWorkedOn && isReachable && notHungryOrFarm;
+                }), person));
+            }
         }
 
         var averageHungerTotal = 0;
@@ -143,6 +151,19 @@ class GameState {
         for (var i = 0; i < this.houses.length; i++) {
             this.updateHouse(this.houses[i]);
         }
+
+        if (this.people.length > this.backgroundHouses.length) {
+            var len = this.people.length - this.backgroundHouses.length;
+            for (var i = 0; i < len; i++) {
+                this.addHouseToBackground();
+            }
+        }
+        if (this.people.length < this.backgroundHouses.length) {
+            var len = this.backgroundHouses.length - this.people.length;
+            for (var i = 0; i < len; i++) {
+                this.removeHouseFromBackground();
+            }
+        }
     }
 
     private getNearestBuild(builds: Build[], person: Person): Build {
@@ -166,14 +187,20 @@ class GameState {
         }
     }
 
-    private buildableFarmsAmt(): number {
-        var result = 0;
-        for (var i = 0; i < this.builds.length; i++) {
-            if (!this.builds[i].beingWorkedOn && this.builds[i].getTileType() == TileType.FARM) {
-                result++;
-            }
-        }
-        return result;
+    private addHouseToBackground() {
+        var sprite = this.game.make.sprite(32 + (GAME_WIDTH - 64) * Math.random(), 370 + 50 * Math.random(), "backgroundHouse");
+        sprite.alpha = 0;
+        this.game.add.tween(sprite).to({alpha: 1}, 2000, Phaser.Easing.Default, true);
+        this.backgroundGroup.add(sprite)
+        this.backgroundHouses.push(sprite);
+    }
+
+    private removeHouseFromBackground() {
+        var spriteIndex = Math.floor(Math.random() * this.backgroundHouses.length);
+        var sprite = this.backgroundHouses[spriteIndex];
+        this.backgroundHouses.splice(spriteIndex, 1);
+        var tween = this.game.add.tween(sprite);
+        tween.to({alpha: 0, exists: false}, 3000, Phaser.Easing.Default, true);
     }
 
     private reproduce(person: Person): boolean {
