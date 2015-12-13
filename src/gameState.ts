@@ -30,6 +30,10 @@ class GameState {
         this.game.load.image("background", "./res/img/background.png");
         this.game.load.image("ground", "./res/img/ground.png");
         this.game.load.image("buildProgress", "./res/img/buildProgress.png");
+        this.game.load.image("hungerFull", "./res/img/hungerFull.png");
+        this.game.load.image("hungerEmpty", "./res/img/hungerEmpty.png");
+        this.game.load.image("blood", "./res/img/blood.png");
+        this.game.load.image("heart", "./res/img/heart.png");
 
         this.game.load.spritesheet("house", "./res/img/house.png", 32, 32);
         this.game.load.spritesheet("farm", "./res/img/farm.png", 32, 32);
@@ -37,6 +41,7 @@ class GameState {
     }
 
     public create(): void {
+        this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
 
@@ -91,20 +96,24 @@ class GameState {
         var time = this.game.time.totalElapsedSeconds();
         var newPersonQueue = [];
         for (var i = 0; i < this.people.length; i++) {
-            this.people[i].update();
-            this.people[i].updateHunger(this.farms, this.people);
-            if (this.people[i].newPerson !== null) {
-                newPersonQueue.push(this.people[i].newPerson);
-                this.people[i].newPerson = null;
+            if (this.people[i].dead) {
+                this.people.splice(i, 1);
+            } else {
+                this.people[i].update(this.farms, this.people);
+                if (this.people[i].newPerson !== null) {
+                    newPersonQueue.push(this.people[i].newPerson);
+                    this.people[i].newPerson = null;
+                }
+                if (this.averageHunger < 0.3 && (time - this.lastReproduction) * this.reproductionRate * (0.7 + Math.random() * 0.3) > 1 && this.people.length < this.houses.length) {
+                    var reproduced = this.reproduce(this.people[i]);
+                    this.lastReproduction = time;
+                }
+                averageHungerTotal += this.people[i].getHunger();
             }
-            if (this.averageHunger < 0.45 && (time - this.lastReproduction) * this.reproductionRate * (0.7 + Math.random() * 0.3) > 1 && this.people.length < this.houses.length) {
-                var reproduced = this.reproduce(this.people[i]);
-                this.lastReproduction = time;
-            }
-            averageHungerTotal += this.people[i].getHunger();
         }
         for (var i = 0; i < newPersonQueue.length; i++) {
             this.people.push(newPersonQueue[i]);
+            this.freePeople.push(newPersonQueue[i]);
         }
         this.averageHunger = averageHungerTotal / this.people.length;
 

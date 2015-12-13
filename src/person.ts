@@ -1,5 +1,7 @@
 class Person {
-    private static HUNGER_INCREASE_FREQ = 0.1;
+    private static HUNGER_INCREASE_FREQ = 0.03;
+    private static MILDLY_HUNGRY = 0.6;
+    private static VERY_HUNGRY = 0.25;
 
     private game: Phaser.Game;
     private currentlyWorking: boolean;
@@ -7,8 +9,18 @@ class Person {
 
     private eating: boolean = false;
     private directionChangeTimeCurrent: number = 0;
-    private directionChangeTime: number = 1;
+    private directionChangeTime: number = 5;
     private direction: number = 0;
+
+    private hungerBarFull: Phaser.Sprite;
+    private hungerBarEmpty: Phaser.Sprite;
+
+    private bloodEmitter: Phaser.Particles.Arcade.Emitter;
+    private bloodDuration: number;
+    private bloodAmount: number;
+    private heartEmitter: Phaser.Particles.Arcade.Emitter;
+    private heartDuration: number;
+    private heartAmount: number;
 
     public sprite: Phaser.Sprite;
     public build: Build;
@@ -40,9 +52,26 @@ class Person {
         this.sprite.animations.add("idle", [0], 1, false);
         this.sprite.animations.add("walk", [0, 1, 0, 2], 12, true);
         this.sprite.animations.add("work", [3, 4], 12, true);
-        this.sprite.animations.add("eat", [5, 0], 3, false);
+        this.sprite.animations.add("eat", [5, 0], 14, false);
 
-        this.moveSpeed = 100;
+        this.hungerBarEmpty = this.game.add.sprite(-this.sprite.width / 2, - 10, "hungerEmpty");
+        this.hungerBarEmpty.parent = this.sprite;
+        this.hungerBarFull = this.game.add.sprite(-this.sprite.width / 2, - 10, "hungerFull");
+        this.hungerBarFull.parent = this.sprite;
+        this.updateHungerBarPosition();
+
+        this.bloodEmitter = this.game.add.emitter();
+        this.bloodEmitter.makeParticles("blood");
+        this.bloodAmount = 50;
+        this.bloodDuration = 500;
+
+        this.heartEmitter = this.game.add.emitter();
+        this.heartEmitter.makeParticles("heart");
+        this.heartEmitter.gravity = -300;
+        this.heartAmount = 5;
+        this.heartDuration = 2000;
+
+        this.moveSpeed = 150;
         this.currentlyWorking = false;
         this.build = null;
         this.dead = false;
@@ -53,11 +82,36 @@ class Person {
         this.build = build;
     }
 
-    public updateHunger(farms: Phaser.Sprite[], people: Person[]): void {
-        if (this.targetPoint !== null) {
+    public update(farms: Phaser.Sprite[], people: Person[]): void {
+        if (this.dead) {
             return;
         }
-        if (this.hunger > 0.67 && people.length > 1 && farms.length == 0) {
+        if (this.sprite === null) {
+            console.log("found a null sprite?");
+            this.die();
+        }
+
+        this.hunger += Person.HUNGER_INCREASE_FREQ * this.game.time.physicsElapsed;
+        if (this.hunger >= 1) {
+            this.die();
+        }
+
+        this.currentlyWorking = false;
+        if (Math.abs(this.sprite.body.velocity.y) < 10) {
+            this.sprite.body.velocity.x = 0;
+        }
+        if (this.targetPoint !== null) {
+            if (this.targetPoint.x - this.sprite.x > this.sprite.width / 1.8) {
+                this.sprite.body.moveRight(this.moveSpeed * 1.2);
+            } else if (this.targetPoint.x - this.sprite.x < -this.sprite.width / 1.8) {
+                this.sprite.body.moveLeft(this.moveSpeed * 1.2);
+            } else {
+                this.targetPoint = null;
+                this.heartEmitter.start(true, this.heartDuration, null, this.heartAmount);
+                this.newPerson = new Person(this.sprite.x, this.sprite.y, this.game);
+                this.newPerson.sprite.body.moveUp(400);
+            }
+        } else if (this.hunger > Person.VERY_HUNGRY && people.length > 1 && farms.length == 0) {
             if (this.build !== null) {
                 this.build.beingWorkedOn = false;
                 this.build = null;
@@ -76,15 +130,17 @@ class Person {
                 this.targetPerson = bestPerson;
             } else if (this.targetPerson.sprite.x - this.sprite.x > this.sprite.width / 1.5) {
                 this.sprite.body.moveRight(this.moveSpeed * 1.5);
+                this.eating = true;
             } else if (this.targetPerson.sprite.x - this.sprite.x < -this.sprite.width / 1.5) {
                 this.sprite.body.moveLeft(this.moveSpeed * 1.5);
-            } else if (this.targetPerson !== null) {
-                this.hunger -= 0.67;
-                this.targetPerson.die();
-                this.targetPerson = null;
                 this.eating = true;
+            } else if (this.targetPerson !== null) {
+                this.hunger -= 1 - this.targetPerson.hunger;
+                this.targetPerson.hunger = 1;
+                this.targetPerson = null;
+                this.eating = false;
             }
-        } else if (this.hunger > 0.5 && farms.length > 0) {
+        } else if (this.hunger > Person.MILDLY_HUNGRY && farms.length > 0) {
             if (this.build !== null && this.build.getTileType() == TileType.HOUSE) {
                 this.build.beingWorkedOn = false;
                 this.build = null;
@@ -106,43 +162,12 @@ class Person {
             } else if (this.targetFarm.x - this.sprite.x < -TILE_SIZE) {
                 this.sprite.body.moveLeft(this.moveSpeed);
             } else {
-                this.hunger -= 0.5;
+                this.hunger -= Person.MILDLY_HUNGRY;
                 this.targetFarm.destroy();
                 farms.splice(farms.indexOf(this.targetFarm), 1);
                 this.targetFarm = null;
             }
-        }
-    }
-
-    public update(): void {
-        if (this.dead) {
-            return;
-        }
-        if (this.sprite === null) {
-            console.log("found a null sprite?");
-            this.die();
-        }
-
-        this.hunger += Person.HUNGER_INCREASE_FREQ * this.game.time.physicsElapsed;
-        if (this.hunger >= 1) {
-            this.die();
-        }
-
-        if (Math.abs(this.sprite.body.velocity.y) < 5) {
-            this.sprite.body.velocity.x = 0;
-        }
-        if (this.targetPoint !== null) {
-            if (this.targetPoint.x - this.sprite.x > this.sprite.width) {
-                this.sprite.body.moveRight(this.moveSpeed * 1.2);
-            } else if (this.targetPoint.x - this.sprite.x < -this.sprite.width) {
-                this.sprite.body.moveLeft(this.moveSpeed * 1.2);
-            } else {
-                this.targetPoint = null;
-                this.newPerson = new Person(this.sprite.x, this.sprite.y, this.game);
-                this.newPerson.sprite.body.moveUp(400);
-            }
-        } else if (this.build !== null && (this.hunger < 0.5 || (this.targetFarm === null && this.targetPerson === null))) {
-            this.currentlyWorking = false;
+        } else if (this.build !== null && (this.hunger < Person.MILDLY_HUNGRY || (this.targetFarm === null && this.targetPerson === null))) {
             if (this.build.getX() * TILE_SIZE - this.sprite.x > TILE_SIZE) {
                 this.sprite.body.moveRight(this.moveSpeed);
             } else if (this.build.getX() * TILE_SIZE - this.sprite.x < -TILE_SIZE) {
@@ -154,7 +179,6 @@ class Person {
             }
             if (this.build.isDoneBuilding()) {
                 this.build = null;
-                this.sprite.body.velocity.x = 0;
             }
         } else if (this.targetPerson === null && this.targetFarm === null) {
             var time = this.game.time.totalElapsedSeconds();
@@ -162,9 +186,12 @@ class Person {
                 this.directionChangeTimeCurrent = time;
                 this.direction = Math.round(Math.random() * 3 - 1.5);
             }
-            this.sprite.body.velocity.x = this.direction * this.moveSpeed;
+            this.sprite.body.velocity.x = this.direction * this.moveSpeed / 3;
         }
         this.updateAnimations();
+        this.updateHungerBarPosition();
+        this.bloodEmitter.position = this.sprite.position;
+        this.heartEmitter.position = this.sprite.position;
 
         if (this.sprite.body.velocity.y > MAX_Y_SPEED) {
             this.sprite.body.velocity.y = MAX_Y_SPEED;
@@ -172,7 +199,10 @@ class Person {
     }
 
     public die(): void {
+        this.bloodEmitter.start(true, this.bloodDuration, null, this.bloodAmount);
         this.sprite.kill();
+        this.hungerBarFull.kill();
+        this.hungerBarEmpty.kill();
         if (this.build !== null) {
             this.build.beingWorkedOn = false;
         }
@@ -180,15 +210,9 @@ class Person {
     }
 
     public updateAnimations(): void {
-        if (this.eating && this.sprite.animations.frame != 5) {
+        if (this.eating) {
             this.sprite.animations.play("eat");
-            return;
-        }
-        if (this.sprite.animations.frame == 5) {
-            this.eating = false;
-            return;
-        }
-        if (this.build !== null && this.currentlyWorking) {
+        } else if (this.build !== null && this.currentlyWorking) {
             this.sprite.animations.play("work");
         } else {
             if (this.sprite.body.velocity.x != 0) {
@@ -197,6 +221,15 @@ class Person {
                 this.sprite.animations.play("idle");
             }
         }
+    }
+
+    private updateHungerBarPosition(): void {
+        this.hungerBarFull.crop(new Phaser.Rectangle(0, 0, this.sprite.width * (1 - this.hunger), this.hungerBarFull.height), false);
+    }
+
+    public setHungerBarVisible(visible: boolean = true): void {
+        this.hungerBarFull.visible = visible;
+        this.hungerBarEmpty.visible = visible;
     }
 
     public getHunger(): number {
