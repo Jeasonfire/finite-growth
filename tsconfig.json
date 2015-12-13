@@ -12,6 +12,7 @@
         "./lib/pixi.d.ts",
         "./src/build.ts",
         "./src/gameState.ts",
+        "./src/gui.ts",
         "./src/main.ts",
         "./src/person.ts"
     ],

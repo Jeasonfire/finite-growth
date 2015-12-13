@@ -1,5 +1,5 @@
 class Person {
-    private static HUNGER_INCREASE_FREQ = 0.03;
+    private static HUNGER_INCREASE_FREQ = 0.025;
     public static MILDLY_HUNGRY = 0.45;
     public static VERY_HUNGRY = 0.75;
 
@@ -30,11 +30,12 @@ class Person {
     public targetPerson: Person;
     public targetPoint: Phaser.Point;
     public reproduced: boolean = false;
+    public justConsumedAFarm: Phaser.Point = null;
 
     public status: string;
     //public guiController: dat.GUIController;
 
-    public constructor(x: number, y: number, game: Phaser.Game) {
+    public constructor(x: number, y: number, game: Phaser.Game, startingHunger: number) {
         this.game = game;
         this.targetFarm = null;
         this.targetPerson = null;
@@ -56,10 +57,10 @@ class Person {
         this.sprite.animations.add("work", [3, 4], 12, true);
         this.sprite.animations.add("eat", [5, 0], 14, false);
 
-        this.hunger = 0.5;
-        this.hungerBarEmpty = this.game.add.sprite(-this.sprite.width / 2, -14, "hungerEmpty");
+        this.hunger = startingHunger;
+        this.hungerBarEmpty = this.game.add.sprite(-this.sprite.width / 2, -12, "hungerEmpty");
         this.hungerBarEmpty.parent = this.sprite;
-        this.hungerBarFull = this.game.add.sprite(-this.sprite.width / 2, -14, "hungerFull");
+        this.hungerBarFull = this.game.add.sprite(-this.sprite.width / 2, -12, "hungerFull");
         this.hungerBarFull.parent = this.sprite;
         this.updateHungerBarPosition();
 
@@ -104,6 +105,7 @@ class Person {
             this.die();
         }
 
+        this.justConsumedAFarm = null;
         this.currentlyWorking = false;
         if (this.build !== null) {
             this.build.beingWorkedOn = false;
@@ -182,6 +184,7 @@ class Person {
                 this.sprite.body.moveLeft(this.moveSpeed);
             } else {
                 this.hunger -= Person.MILDLY_HUNGRY;
+                this.justConsumedAFarm = new Phaser.Point(this.targetFarm.x, this.targetFarm.y);
                 this.targetFarm.destroy();
                 farms.splice(farms.indexOf(this.targetFarm), 1);
                 this.targetFarm = null;

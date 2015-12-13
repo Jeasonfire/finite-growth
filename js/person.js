@@ -1,10 +1,11 @@
 var Person = (function () {
-    function Person(x, y, game) {
+    function Person(x, y, game, startingHunger) {
         this.eating = false;
         this.directionChangeTimeCurrent = 0;
         this.directionChangeTime = 5;
         this.direction = 0;
         this.reproduced = false;
+        this.justConsumedAFarm = null;
         this.game = game;
         this.targetFarm = null;
         this.targetPerson = null;
@@ -24,10 +25,10 @@ var Person = (function () {
         this.sprite.animations.add("walk", [0, 1, 0, 2], 12, true);
         this.sprite.animations.add("work", [3, 4], 12, true);
         this.sprite.animations.add("eat", [5, 0], 14, false);
-        this.hunger = 0.5;
-        this.hungerBarEmpty = this.game.add.sprite(-this.sprite.width / 2, -14, "hungerEmpty");
+        this.hunger = startingHunger;
+        this.hungerBarEmpty = this.game.add.sprite(-this.sprite.width / 2, -12, "hungerEmpty");
         this.hungerBarEmpty.parent = this.sprite;
-        this.hungerBarFull = this.game.add.sprite(-this.sprite.width / 2, -14, "hungerFull");
+        this.hungerBarFull = this.game.add.sprite(-this.sprite.width / 2, -12, "hungerFull");
         this.hungerBarFull.parent = this.sprite;
         this.updateHungerBarPosition();
         this.bloodEmitter = this.game.add.emitter();
@@ -63,6 +64,7 @@ var Person = (function () {
         if (this.hunger >= 1) {
             this.die();
         }
+        this.justConsumedAFarm = null;
         this.currentlyWorking = false;
         if (this.build !== null) {
             this.build.beingWorkedOn = false;
@@ -152,6 +154,7 @@ var Person = (function () {
             }
             else {
                 this.hunger -= Person.MILDLY_HUNGRY;
+                this.justConsumedAFarm = new Phaser.Point(this.targetFarm.x, this.targetFarm.y);
                 this.targetFarm.destroy();
                 farms.splice(farms.indexOf(this.targetFarm), 1);
                 this.targetFarm = null;
@@ -234,7 +237,7 @@ var Person = (function () {
     Person.prototype.getHunger = function () {
         return this.hunger;
     };
-    Person.HUNGER_INCREASE_FREQ = 0.03;
+    Person.HUNGER_INCREASE_FREQ = 0.025;
     Person.MILDLY_HUNGRY = 0.45;
     Person.VERY_HUNGRY = 0.75;
     return Person;

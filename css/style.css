@@ -1,6 +1,7 @@
 body {
     margin: 0px;
     background-color: #202020;
+    font-family: "DefaultFont";
 }
 
 #game {
@@ -8,4 +9,9 @@ body {
     height: 600px;
     margin-left: auto;
     margin-right: auto;
+}
+
+@font-face {
+    font-family: "DefaultFont";
+    src: url(".././res/fnt/upheavtt.ttf");
 }
