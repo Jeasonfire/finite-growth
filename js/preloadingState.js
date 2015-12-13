@@ -21,6 +21,9 @@ var PreloadingState = (function () {
         this.game.load.spritesheet("person", "./res/img/person.png", 12, 12);
         this.game.load.spritesheet("refreshFarm", "./res/img/refreshFarm.png", 64, 64);
         this.game.load.spritesheet("fadedSprites", "./res/img/fadedSprites.png", 32, 32);
+        this.game.load.audio("perish", "./res/sfx/perish.wav");
+        this.game.load.audio("life", "./res/sfx/life.wav");
+        this.game.load.audio("collision", "./res/sfx/collision.wav");
     };
     PreloadingState.prototype.create = function () {
         var _this = this;

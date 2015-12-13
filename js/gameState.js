@@ -40,10 +40,11 @@ var GameState = (function () {
         this.builds = [];
         this.houses = [];
         this.farms = [];
-        this.fadedSprite = this.game.add.sprite(0, 0, "fadedSprites");
+        this.fadedSprite = this.game.make.sprite(0, 0, "fadedSprites");
         this.fadedSprite.anchor.setTo(0.5);
         this.fadedSprite.alpha = 0.4;
         this.fadedSprite.animations.frame = 0;
+        this.midgroundGroup.add(this.fadedSprite);
         this.currentTileType = TileType.FARM;
         this.people = [];
         this.freePeople = [];
@@ -52,10 +53,11 @@ var GameState = (function () {
         this.createPerson(480, 270, 0);
         this.reproductionRate = 0.3;
         this.addHouseToBackground();
-        this.gui = new GameGUI(this.game);
+        this.gui = new GameGUI(this.game, this.foregroundGroup);
     };
     GameState.prototype.update = function () {
         var _this = this;
+        this.game.sound.volume = getMasterLevel();
         this.gui.update(this.people.length, this.freePeople.length, this.houses.length, this.currentTileType, this.averageHunger);
         this.updateMouseSprite();
         if (this.game.input.activePointer.leftButton.isDown) {

@@ -18,6 +18,8 @@ class GameState {
     private backgroundGroup: Phaser.Group;  // Desaturated background stuff
     private midgroundGroup: Phaser.Group;   // Buildings, ground
     private foregroundGroup: Phaser.Group;  // People
+    private soundGroup: Phaser.Group;
+    private musicGroup: Phaser.Group;
 
     private gui: GameGUI;
 
@@ -68,10 +70,11 @@ class GameState {
         //gui.add(this.houses, 'length').listen();
         //gui.add(this.farms, 'length').listen();
 
-        this.fadedSprite = this.game.add.sprite(0, 0, "fadedSprites");
+        this.fadedSprite = this.game.make.sprite(0, 0, "fadedSprites");
         this.fadedSprite.anchor.setTo(0.5);
         this.fadedSprite.alpha = 0.4;
         this.fadedSprite.animations.frame = 0;
+        this.midgroundGroup.add(this.fadedSprite);
         this.currentTileType = TileType.FARM;
 
         this.people = [];
@@ -84,10 +87,11 @@ class GameState {
 
         this.addHouseToBackground();
 
-        this.gui = new GameGUI(this.game);
+        this.gui = new GameGUI(this.game, this.foregroundGroup);
     }
 
     public update(): void {
+        this.game.sound.volume = getMasterLevel();
         this.gui.update(this.people.length, this.freePeople.length, this.houses.length, this.currentTileType, this.averageHunger);
 
         this.updateMouseSprite();

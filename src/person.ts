@@ -22,6 +22,10 @@ class Person {
     private heartDuration: number;
     private heartAmount: number;
 
+    private collisionSound: Phaser.Sound;
+    private deathSound: Phaser.Sound;
+    private lifeSound: Phaser.Sound;
+
     public sprite: Phaser.Sprite;
     public build: Build;
     public moveSpeed: number;
@@ -40,6 +44,9 @@ class Person {
         this.targetFarm = null;
         this.targetPerson = null;
         this.targetPoint = null;
+        this.collisionSound = this.game.add.audio("collision");
+        this.deathSound = this.game.add.audio("perish");
+        this.lifeSound = this.game.add.audio("life");
         this.sprite = this.game.make.sprite(x, y, "person");
         this.game.physics.p2.enableBody(this.sprite, false);
         this.sprite.body.setRectangle(1, 1);
@@ -47,6 +54,7 @@ class Person {
         this.sprite.body.fixedRotation = true;
         this.sprite.body.onBeginContact.add(function(other: Phaser.Physics.P2.Body) {
             if (other !== null && other.dynamic) {
+                this.collisionSound.play();
                 this.sprite.body.velocity.y = -100;
                 this.sprite.body.velocity.x = (Math.random() * 2 - 1) * 100;
             }
@@ -123,6 +131,7 @@ class Person {
                 this.targetPoint = null;
                 this.heartEmitter.start(true, this.heartDuration, null, this.heartAmount);
                 this.reproduced = Math.random() < 0.65;
+                this.lifeSound.play();
             }
             this.status = "searching for target";
         } else if (this.hunger > Person.VERY_HUNGRY && people.length > 1 && farms.length == 0) {
@@ -221,6 +230,9 @@ class Person {
         this.updateHungerBarPosition();
         this.bloodEmitter.position = this.sprite.position;
         this.heartEmitter.position = this.sprite.position;
+        this.collisionSound.volume = getCollisionLevel();
+        this.deathSound.volume = getOtherEffectLevel();
+        this.lifeSound.volume = getOtherEffectLevel();
 
         if (this.sprite.body.velocity.y > MAX_Y_SPEED) {
             this.sprite.body.velocity.y = MAX_Y_SPEED;
@@ -228,6 +240,7 @@ class Person {
     }
 
     public die(): void {
+        this.deathSound.play();
         this.bloodEmitter.start(true, this.bloodDuration, null, this.bloodAmount);
         this.sprite.kill();
         this.hungerBarFull.kill();
@@ -238,7 +251,7 @@ class Person {
         this.dead = true;
     }
 
-    public updateAnimations(): void {
+    private updateAnimations(): void {
         if (this.eating) {
             this.sprite.animations.play("eat");
         } else if (this.build !== null && this.currentlyWorking) {

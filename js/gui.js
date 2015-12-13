@@ -1,21 +1,28 @@
 var GameGUI = (function () {
-    function GameGUI(game) {
+    function GameGUI(game, foregroundGroup) {
         this.game = game;
         this.autoFarmRefresh = false;
-        this.buttonAutoFarm = this.game.add.button(15, 495, "refreshFarm", this.toggleAutoFarmRefresh, this, 5, 4, 6, 7);
+        this.buttonAutoFarm = this.game.make.button(15, 495, "refreshFarm", this.toggleAutoFarmRefresh, this, 5, 4, 6, 7);
         this.buttonAutoFarm.alpha = 0;
         this.showAutoFarmButton();
-        this.font = "18px DefaultFont";
-        this.workingPeople = this.game.add.text(100, 503, "Working people: 0/0", { font: this.font });
-        this.amountOfHouses = this.game.add.text(100, 533, "Amount of houses: 0", { font: this.font });
-        this.currentTool = this.game.add.text(350, 503, "Currently placing: Farm", { font: this.font });
-        this.game.add.text(350, 530, "Avg. hunger: ", { font: this.font });
-        this.averageHungerEmpty = this.game.add.sprite(475, 528, "hungerEmpty");
+        this.font = "20px DefaultFont";
+        this.workingPeople = this.game.make.text(100, 503, "Working people: 0/0", { font: this.font });
+        this.amountOfHouses = this.game.make.text(100, 533, "Amount of houses: 0", { font: this.font });
+        this.currentTool = this.game.make.text(350, 503, "Currently placing: Farm", { font: this.font });
+        var avgText = this.game.make.text(350, 530, "Avg. hunger: ", { font: this.font });
+        this.averageHungerEmpty = this.game.make.sprite(475, 528, "hungerEmpty");
         this.averageHungerEmpty.smoothed = false;
         this.averageHungerEmpty.scale.setTo(8, 8);
-        this.averageHungerFull = this.game.add.sprite(475, 528, "hungerFull");
+        this.averageHungerFull = this.game.make.sprite(475, 528, "hungerFull");
         this.averageHungerFull.smoothed = false;
         this.averageHungerFull.scale.setTo(8, 8);
+        foregroundGroup.add(this.buttonAutoFarm);
+        foregroundGroup.add(this.workingPeople);
+        foregroundGroup.add(this.amountOfHouses);
+        foregroundGroup.add(this.currentTool);
+        foregroundGroup.add(avgText);
+        foregroundGroup.add(this.averageHungerEmpty);
+        foregroundGroup.add(this.averageHungerFull);
     }
     GameGUI.prototype.update = function (peopleAmt, freePeopleAmt, housesAmt, toolType, averageHunger) {
         this.workingPeople.setText("Working people: " + (peopleAmt - freePeopleAmt) + "/" + peopleAmt);
