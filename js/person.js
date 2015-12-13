@@ -1,6 +1,7 @@
 var Person = (function () {
     function Person(x, y, game) {
         this.hunger = 0;
+        this.eating = false;
         this.directionChangeTimeCurrent = 0;
         this.directionChangeTime = 1;
         this.direction = 0;
@@ -23,7 +24,7 @@ var Person = (function () {
         this.sprite.animations.add("idle", [0], 1, false);
         this.sprite.animations.add("walk", [0, 1, 0, 2], 12, true);
         this.sprite.animations.add("work", [3, 4], 12, true);
-        this.sprite.animations.add("dead", [5], 1, false);
+        this.sprite.animations.add("eat", [5, 0], 3, false);
         this.moveSpeed = 100;
         this.currentlyWorking = false;
         this.build = null;
@@ -55,16 +56,17 @@ var Person = (function () {
                 }
                 this.targetPerson = bestPerson;
             }
-            else if (this.targetPerson.sprite.x - this.sprite.x > TILE_SIZE) {
+            else if (this.targetPerson.sprite.x - this.sprite.x > this.sprite.width / 1.5) {
                 this.sprite.body.moveRight(this.moveSpeed * 1.5);
             }
-            else if (this.targetPerson.sprite.x - this.sprite.x < -TILE_SIZE) {
+            else if (this.targetPerson.sprite.x - this.sprite.x < -this.sprite.width / 1.5) {
                 this.sprite.body.moveLeft(this.moveSpeed * 1.5);
             }
             else if (this.targetPerson !== null) {
                 this.hunger -= 0.67;
                 this.targetPerson.die();
                 this.targetPerson = null;
+                this.eating = true;
             }
         }
         else if (this.hunger > 0.5 && farms.length > 0) {
@@ -93,8 +95,8 @@ var Person = (function () {
             }
             else {
                 this.hunger -= 0.5;
+                this.targetFarm.destroy();
                 farms.splice(farms.indexOf(this.targetFarm), 1);
-                this.targetFarm.kill();
                 this.targetFarm = null;
             }
         }
@@ -151,6 +153,7 @@ var Person = (function () {
                 this.directionChangeTimeCurrent = time;
                 this.direction = Math.round(Math.random() * 3 - 1.5);
             }
+            this.sprite.body.velocity.x = this.direction * this.moveSpeed;
         }
         this.updateAnimations();
         if (this.sprite.body.velocity.y > MAX_Y_SPEED) {
@@ -165,6 +168,14 @@ var Person = (function () {
         this.dead = true;
     };
     Person.prototype.updateAnimations = function () {
+        if (this.eating && this.sprite.animations.frame != 5) {
+            this.sprite.animations.play("eat");
+            return;
+        }
+        if (this.sprite.animations.frame == 5) {
+            this.eating = false;
+            return;
+        }
         if (this.build !== null && this.currentlyWorking) {
             this.sprite.animations.play("work");
         }
@@ -180,6 +191,6 @@ var Person = (function () {
     Person.prototype.getHunger = function () {
         return this.hunger;
     };
-    Person.HUNGER_INCREASE_FREQ = 0.025;
+    Person.HUNGER_INCREASE_FREQ = 0.1;
     return Person;
 })();
