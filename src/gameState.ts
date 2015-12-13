@@ -32,24 +32,8 @@ class GameState {
     private lastReproduction: number = 0;
     private averageHunger: number = 0;
 
-    public preload(): void {
-        this.game.load.image("background", "./res/img/background.png");
-        this.game.load.image("backgroundHouse", "./res/img/backgroundHouse.png");
-        this.game.load.image("ground", "./res/img/ground.png");
-        this.game.load.image("buildProgress", "./res/img/buildProgress.png");
-        this.game.load.image("hungerFull", "./res/img/hungerFull.png");
-        this.game.load.image("hungerEmpty", "./res/img/hungerEmpty.png");
-        this.game.load.image("blood", "./res/img/blood.png");
-        this.game.load.image("heart", "./res/img/heart.png");
-
-        this.game.load.spritesheet("house", "./res/img/house.png", 32, 32);
-        this.game.load.spritesheet("farm", "./res/img/farm.png", 32, 32);
-        this.game.load.spritesheet("person", "./res/img/person.png", 12, 12);
-        this.game.load.spritesheet("refreshFarm", "./res/img/refreshFarm.png", 64, 64);
-        this.game.load.spritesheet("fadedSprites", "./res/img/fadedSprites.png", 32, 32);
-    }
-
     public create(): void {
+        gui.close();
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
@@ -59,7 +43,11 @@ class GameState {
 
         this.backgroundGroup = this.game.add.group();
         this.midgroundGroup = this.game.add.group();
+        this.midgroundGroup.alpha = 0;
         this.foregroundGroup = this.game.add.group();
+        this.foregroundGroup.alpha = 0;
+        this.game.add.tween(this.midgroundGroup).to({alpha: 1}, 1000, Phaser.Easing.Cubic.In, true);
+        this.game.add.tween(this.foregroundGroup).to({alpha: 1}, 1000, Phaser.Easing.Cubic.In, true);
 
         this.backgroundSprite = this.game.make.sprite(0, 0, "background");
         this.backgroundSprite.fixedToCamera = true;

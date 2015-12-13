@@ -14,7 +14,9 @@
         "./src/gameState.ts",
         "./src/gui.ts",
         "./src/main.ts",
-        "./src/person.ts"
+        "./src/mainMenu.ts",
+        "./src/person.ts",
+        "./src/preloadingState.ts"
     ],
     "atom": {
         "rewriteTsconfig": true
