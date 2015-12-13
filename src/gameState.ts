@@ -54,7 +54,7 @@ class GameState {
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
 
-        this.game.input.activePointer.leftButton.onDown.add(this.leftClick, this);
+        this.game.input.activePointer.leftButton.onDown.add(this.manualLeftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
 
         this.backgroundGroup = this.game.add.group();
@@ -103,7 +103,7 @@ class GameState {
         this.gui.update(this.people.length, this.freePeople.length, this.houses.length, this.currentTileType, this.averageHunger);
 
         this.updateMouseSprite();
-        if (this.game.input.activePointer.leftButton.isDown && this.game.input.activePointer.y < 475) {
+        if (this.game.input.activePointer.leftButton.isDown) {
             this.leftClick();
         }
 
@@ -192,7 +192,7 @@ class GameState {
     }
 
     private addHouseToBackground() {
-        var sprite = this.game.make.sprite(32 + (GAME_WIDTH - 64) * Math.random(), 370 + 50 * Math.random(), "backgroundHouse");
+        var sprite = this.game.make.sprite(GAME_WIDTH * Math.random(), 370 + 50 * Math.random(), "backgroundHouse");
         sprite.alpha = 0;
         this.game.add.tween(sprite).to({alpha: 1}, 2000, Phaser.Easing.Default, true);
         this.backgroundGroup.add(sprite)
@@ -247,7 +247,19 @@ class GameState {
     }
 
     private mouseTileY(): number {
-        return Math.floor((this.game.input.activePointer.y + TILE_SIZE * 0.5 + this.game.camera.y) / TILE_SIZE);
+        var x = this.mouseTileX();
+        switch (this.currentTileType) {
+        case TileType.HOUSE:
+            var viableHeight = this.tileElevation - 1;
+            while (this.houseExistsAt(x, viableHeight) || (this.buildExistsAt(x, viableHeight) && this.buildAt(x, viableHeight).getTileType() == TileType.HOUSE)) {
+                viableHeight--;
+            }
+            return Math.max(viableHeight, 1);
+        case TileType.FARM:
+            return this.tileElevation - 1;
+        default:
+            return Math.floor((this.game.input.activePointer.y + TILE_SIZE * 0.5 + this.game.camera.y) / TILE_SIZE);
+        }
     }
 
     private startConstruction(xTile: number, yTile: number, tileType: TileType): Build {
@@ -368,13 +380,20 @@ class GameState {
         return false;
     }
 
-    private leftClick(): void {
+    private manualLeftClick(): void {
+        this.leftClick(false);
+    }
+
+    private leftClick(auto: boolean = true): void {
         var mouseX = this.mouseTileX();
         var mouseY = this.mouseTileY();
 
         if (this.currentTileType != TileType.REMOVE) {
-            var build = this.startConstruction(mouseX, mouseY, this.currentTileType);
+            if (auto == (this.currentTileType != TileType.HOUSE)) {
+                var build = this.startConstruction(mouseX, mouseY, this.currentTileType);
+            }
         } else {
+
             var build = this.buildAt(mouseX, mouseY);
             if (build !== null) {
                 build.finish();

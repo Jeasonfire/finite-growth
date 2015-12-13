@@ -32,7 +32,7 @@ var GameState = (function () {
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
-        this.game.input.activePointer.leftButton.onDown.add(this.leftClick, this);
+        this.game.input.activePointer.leftButton.onDown.add(this.manualLeftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
         this.backgroundGroup = this.game.add.group();
         this.midgroundGroup = this.game.add.group();
@@ -68,7 +68,7 @@ var GameState = (function () {
         var _this = this;
         this.gui.update(this.people.length, this.freePeople.length, this.houses.length, this.currentTileType, this.averageHunger);
         this.updateMouseSprite();
-        if (this.game.input.activePointer.leftButton.isDown && this.game.input.activePointer.y < 475) {
+        if (this.game.input.activePointer.leftButton.isDown) {
             this.leftClick();
         }
         this.updateFreePeople();
@@ -154,7 +154,7 @@ var GameState = (function () {
         }
     };
     GameState.prototype.addHouseToBackground = function () {
-        var sprite = this.game.make.sprite(32 + (GAME_WIDTH - 64) * Math.random(), 370 + 50 * Math.random(), "backgroundHouse");
+        var sprite = this.game.make.sprite(GAME_WIDTH * Math.random(), 370 + 50 * Math.random(), "backgroundHouse");
         sprite.alpha = 0;
         this.game.add.tween(sprite).to({ alpha: 1 }, 2000, Phaser.Easing.Default, true);
         this.backgroundGroup.add(sprite);
@@ -203,7 +203,19 @@ var GameState = (function () {
         return Math.floor((this.game.input.activePointer.x + TILE_SIZE * 0.5 + this.game.camera.x) / TILE_SIZE);
     };
     GameState.prototype.mouseTileY = function () {
-        return Math.floor((this.game.input.activePointer.y + TILE_SIZE * 0.5 + this.game.camera.y) / TILE_SIZE);
+        var x = this.mouseTileX();
+        switch (this.currentTileType) {
+            case TileType.HOUSE:
+                var viableHeight = this.tileElevation - 1;
+                while (this.houseExistsAt(x, viableHeight) || (this.buildExistsAt(x, viableHeight) && this.buildAt(x, viableHeight).getTileType() == TileType.HOUSE)) {
+                    viableHeight--;
+                }
+                return Math.max(viableHeight, 1);
+            case TileType.FARM:
+                return this.tileElevation - 1;
+            default:
+                return Math.floor((this.game.input.activePointer.y + TILE_SIZE * 0.5 + this.game.camera.y) / TILE_SIZE);
+        }
     };
     GameState.prototype.startConstruction = function (xTile, yTile, tileType) {
         var build = new Build(xTile, yTile, tileType);
@@ -318,11 +330,17 @@ var GameState = (function () {
         }
         return false;
     };
-    GameState.prototype.leftClick = function () {
+    GameState.prototype.manualLeftClick = function () {
+        this.leftClick(false);
+    };
+    GameState.prototype.leftClick = function (auto) {
+        if (auto === void 0) { auto = true; }
         var mouseX = this.mouseTileX();
         var mouseY = this.mouseTileY();
         if (this.currentTileType != TileType.REMOVE) {
-            var build = this.startConstruction(mouseX, mouseY, this.currentTileType);
+            if (auto == (this.currentTileType != TileType.HOUSE)) {
+                var build = this.startConstruction(mouseX, mouseY, this.currentTileType);
+            }
         }
         else {
             var build = this.buildAt(mouseX, mouseY);
