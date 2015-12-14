@@ -1,5 +1,7 @@
 var GameGUI = (function () {
     function GameGUI(game, foregroundGroup) {
+        this.refreshRate = 10;
+        this.lastRefresh = 0;
         this.game = game;
         this.autoFarmRefresh = false;
         this.buttonAutoFarm = this.game.make.button(15, 495, "refreshFarm", this.toggleAutoFarmRefresh, this, 5, 4, 6, 7);
@@ -25,6 +27,11 @@ var GameGUI = (function () {
         foregroundGroup.add(this.averageHungerFull);
     }
     GameGUI.prototype.update = function (peopleAmt, freePeopleAmt, housesAmt, toolType, averageHunger) {
+        var time = this.game.time.totalElapsedSeconds();
+        if (time - this.lastRefresh < 1.0 / this.refreshRate) {
+            return;
+        }
+        this.lastRefresh = time;
         this.workingPeople.setText("Working people: " + (peopleAmt - freePeopleAmt) + "/" + peopleAmt);
         this.amountOfHouses.setText("Amount of houses: " + housesAmt);
         var textStart = "Clicking now would.. ";

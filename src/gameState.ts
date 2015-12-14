@@ -38,13 +38,15 @@ class GameState {
     private lastReproduction: number = 0;
     private averageHunger: number = 0;
 
+    private houseBuildingCooldown: number = 0.1;
+    private lastHouseBuilt: number = 0;
+
     public create(): void {
         gui.close();
         this.game.physics.startSystem(Phaser.Physics.ARCADE);
         this.game.physics.startSystem(Phaser.Physics.P2JS);
         this.game.physics.p2.gravity.y = 900;
 
-        this.game.input.activePointer.leftButton.onDown.add(this.manualLeftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
 
         this.happyMusic = this.game.add.sound("happyTheme", 0, true);
@@ -218,8 +220,21 @@ class GameState {
     }
 
     private addHouseToBackground() {
-        var sprite = this.game.make.sprite(GAME_WIDTH * Math.random(), 370 + 50 * Math.random(), "backgroundHouse");
+        var sprite = this.game.make.sprite(0, 0, "backgroundHouse");
         sprite.alpha = 0;
+        function overlapping(backgroundHouses: Phaser.Sprite[]) {
+            for (var i = 0; i < backgroundHouses.length; i++) {
+                if (backgroundHouses[i].overlap(sprite)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        var limit = 100;
+        do {
+            sprite.position.setTo(GAME_WIDTH * Math.random(), 370 + 50 * Math.random());
+            limit--;
+        } while (overlapping(this.backgroundHouses) && limit > 0);
         this.game.add.tween(sprite).to({alpha: 1}, 2000, Phaser.Easing.Default, true);
         this.backgroundGroup.add(sprite)
         this.backgroundHouses.push(sprite);
@@ -269,15 +284,16 @@ class GameState {
     }
 
     private mouseTileX(): number {
-        return Math.floor((this.game.input.activePointer.x + TILE_SIZE * 0.5 + this.game.camera.x) / TILE_SIZE);
+        return Math.floor(this.game.input.activePointer.x / TILE_SIZE + 0.5);
     }
 
     private mouseTileY(): number {
         var x = this.mouseTileX();
+        var mouseY = Math.floor(this.game.input.activePointer.y / TILE_SIZE + 0.5);
         switch (this.currentTileType) {
         case TileType.HOUSE:
             var viableHeight = this.tileElevation - 1;
-            while (this.houseExistsAt(x, viableHeight) || (this.buildExistsAt(x, viableHeight) && this.buildAt(x, viableHeight).getTileType() == TileType.HOUSE)) {
+            while (viableHeight > mouseY && (this.houseExistsAt(x, viableHeight) || (this.buildExistsAt(x, viableHeight) && this.buildAt(x, viableHeight).getTileType() == TileType.HOUSE))) {
                 viableHeight--;
             }
             return Math.max(viableHeight, 1);
@@ -406,17 +422,15 @@ class GameState {
         return false;
     }
 
-    private manualLeftClick(): void {
-        this.leftClick(false);
-    }
-
-    private leftClick(auto: boolean = true): void {
+    private leftClick(): void {
         var mouseX = this.mouseTileX();
         var mouseY = this.mouseTileY();
 
         if (this.currentTileType != TileType.REMOVE) {
-            if (auto == (this.currentTileType != TileType.HOUSE)) {
+            var time = this.game.time.totalElapsedSeconds();
+            if (this.currentTileType != TileType.HOUSE || time - this.lastHouseBuilt > this.houseBuildingCooldown) {
                 var build = this.startConstruction(mouseX, mouseY, this.currentTileType);
+                this.lastHouseBuilt = time;
             }
         } else {
 

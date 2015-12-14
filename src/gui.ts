@@ -11,6 +11,9 @@ class GameGUI {
 
     private autoFarmRefresh: boolean;
 
+    private refreshRate: number = 10;
+    private lastRefresh: number = 0;
+
     public constructor(game: Phaser.Game, foregroundGroup: Phaser.Group) {
         this.game = game;
         this.autoFarmRefresh = false;
@@ -40,6 +43,12 @@ class GameGUI {
     }
 
     public update(peopleAmt: number, freePeopleAmt: number, housesAmt: number, toolType: TileType, averageHunger: number): void {
+        var time = this.game.time.totalElapsedSeconds();
+        if (time - this.lastRefresh < 1.0 / this.refreshRate) {
+            return;
+        }
+        this.lastRefresh = time;
+
         this.workingPeople.setText("Working people: " + (peopleAmt - freePeopleAmt) + "/" + peopleAmt);
         this.amountOfHouses.setText("Amount of houses: " + housesAmt);
         var textStart = "Clicking now would.. "

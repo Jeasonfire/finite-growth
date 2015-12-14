@@ -26,6 +26,9 @@ class Person {
     private deathSound: Phaser.Sound;
     private lifeSound: Phaser.Sound;
 
+    private lastTimeMoved: number = 0;
+    private maxTimeStill: number = 4;
+
     public sprite: Phaser.Sprite;
     public build: Build;
     public moveSpeed: number;
@@ -228,6 +231,7 @@ class Person {
         }
         this.updateAnimations();
         this.updateHungerBarPosition();
+        this.updateStuckFix();
         this.bloodEmitter.position = this.sprite.position;
         this.heartEmitter.position = this.sprite.position;
         this.collisionSound.volume = getCollisionLevel();
@@ -267,6 +271,17 @@ class Person {
 
     private updateHungerBarPosition(): void {
         this.hungerBarFull.crop(new Phaser.Rectangle(0, 0, this.sprite.width * (1 - this.hunger), this.hungerBarFull.height), false);
+    }
+
+    private updateStuckFix(): void {
+        var time = this.game.time.totalElapsedSeconds();
+        if (time - this.lastTimeMoved > this.maxTimeStill) {
+            this.sprite.body.moveUp(300);
+            this.lastTimeMoved = time;
+        }
+        if (Math.abs(this.sprite.body.velocity.x) > 10) {
+            this.lastTimeMoved = time;
+        }
     }
 
     public setHungerBarVisible(visible: boolean = true): void {

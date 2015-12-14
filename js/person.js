@@ -4,6 +4,8 @@ var Person = (function () {
         this.directionChangeTimeCurrent = 0;
         this.directionChangeTime = 5;
         this.direction = 0;
+        this.lastTimeMoved = 0;
+        this.maxTimeStill = 4;
         this.reproduced = false;
         this.justConsumedAFarm = null;
         this.game = game;
@@ -199,6 +201,7 @@ var Person = (function () {
         }
         this.updateAnimations();
         this.updateHungerBarPosition();
+        this.updateStuckFix();
         this.bloodEmitter.position = this.sprite.position;
         this.heartEmitter.position = this.sprite.position;
         this.collisionSound.volume = getCollisionLevel();
@@ -237,6 +240,16 @@ var Person = (function () {
     };
     Person.prototype.updateHungerBarPosition = function () {
         this.hungerBarFull.crop(new Phaser.Rectangle(0, 0, this.sprite.width * (1 - this.hunger), this.hungerBarFull.height), false);
+    };
+    Person.prototype.updateStuckFix = function () {
+        var time = this.game.time.totalElapsedSeconds();
+        if (time - this.lastTimeMoved > this.maxTimeStill) {
+            this.sprite.body.moveUp(300);
+            this.lastTimeMoved = time;
+        }
+        if (Math.abs(this.sprite.body.velocity.x) > 10) {
+            this.lastTimeMoved = time;
+        }
     };
     Person.prototype.setHungerBarVisible = function (visible) {
         if (visible === void 0) { visible = true; }
