@@ -32,6 +32,10 @@ class PreloadingState {
         this.game.load.audio("perish", "./res/sfx/perish.wav");
         this.game.load.audio("life", "./res/sfx/life.wav");
         this.game.load.audio("collision", "./res/sfx/collision.wav");
+        this.game.load.audio("mainTheme", "./res/mus/mainTheme.ogg");
+        this.game.load.audio("happyTheme", "./res/mus/happyTheme.ogg");
+        this.game.load.audio("worryTheme", "./res/mus/worryTheme.ogg");
+        this.game.load.audio("dangerTheme", "./res/mus/dangerTheme.ogg");
     }
 
     public create(): void {

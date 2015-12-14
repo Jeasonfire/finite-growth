@@ -20,6 +20,12 @@ var GameState = (function () {
         this.game.physics.p2.gravity.y = 900;
         this.game.input.activePointer.leftButton.onDown.add(this.manualLeftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
+        this.happyMusic = this.game.add.sound("happyTheme", 0, true);
+        this.happyMusic.play();
+        this.worryMusic = this.game.add.sound("worryTheme", 0, true);
+        this.worryMusic.play();
+        this.dangerMusic = this.game.add.sound("dangerTheme", 0, true);
+        this.dangerMusic.play();
         this.backgroundGroup = this.game.add.group();
         this.midgroundGroup = this.game.add.group();
         this.midgroundGroup.alpha = 0;
@@ -58,6 +64,7 @@ var GameState = (function () {
     GameState.prototype.update = function () {
         var _this = this;
         this.game.sound.volume = getMasterLevel();
+        this.updateSound(getMusicLevel());
         this.gui.update(this.people.length, this.freePeople.length, this.houses.length, this.currentTileType, this.averageHunger);
         this.updateMouseSprite();
         if (this.game.input.activePointer.leftButton.isDown) {
@@ -121,6 +128,29 @@ var GameState = (function () {
             var len = this.backgroundHouses.length - this.people.length;
             for (var i = 0; i < len; i++) {
                 this.removeHouseFromBackground();
+            }
+        }
+    };
+    GameState.prototype.updateSound = function (vol) {
+        if (this.averageHunger < Person.MILDLY_HUNGRY) {
+            if (this.happyMusic.volume == 0) {
+                this.game.add.tween(this.happyMusic).to({ volume: vol }, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({ volume: 0 }, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({ volume: 0 }, 500, Phaser.Easing.Default, true);
+            }
+        }
+        else if (this.averageHunger < Person.VERY_HUNGRY) {
+            if (this.worryMusic.volume == 0) {
+                this.game.add.tween(this.happyMusic).to({ volume: 0 }, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({ volume: vol }, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({ volume: 0 }, 500, Phaser.Easing.Default, true);
+            }
+        }
+        else {
+            if (this.dangerMusic.volume == 0) {
+                this.game.add.tween(this.happyMusic).to({ volume: 0 }, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({ volume: 0 }, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({ volume: vol }, 500, Phaser.Easing.Default, true);
             }
         }
     };

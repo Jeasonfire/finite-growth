@@ -12,6 +12,10 @@ class GameState {
     private ground: Phaser.Group;
     private tileElevation: number;
 
+    private happyMusic: Phaser.Sound;
+    private worryMusic: Phaser.Sound;
+    private dangerMusic: Phaser.Sound;
+
     private currentTileType: TileType;
     private fadedSprite: Phaser.Sprite;
 
@@ -42,6 +46,13 @@ class GameState {
 
         this.game.input.activePointer.leftButton.onDown.add(this.manualLeftClick, this);
         this.game.input.activePointer.rightButton.onDown.add(this.rightClick, this);
+
+        this.happyMusic = this.game.add.sound("happyTheme", 0, true);
+        this.happyMusic.play();
+        this.worryMusic = this.game.add.sound("worryTheme", 0, true);
+        this.worryMusic.play();
+        this.dangerMusic = this.game.add.sound("dangerTheme", 0, true);
+        this.dangerMusic.play();
 
         this.backgroundGroup = this.game.add.group();
         this.midgroundGroup = this.game.add.group();
@@ -92,6 +103,7 @@ class GameState {
 
     public update(): void {
         this.game.sound.volume = getMasterLevel();
+        this.updateSound(getMusicLevel());
         this.gui.update(this.people.length, this.freePeople.length, this.houses.length, this.currentTileType, this.averageHunger);
 
         this.updateMouseSprite();
@@ -158,6 +170,28 @@ class GameState {
             var len = this.backgroundHouses.length - this.people.length;
             for (var i = 0; i < len; i++) {
                 this.removeHouseFromBackground();
+            }
+        }
+    }
+
+    private updateSound(vol: number): void {
+        if (this.averageHunger < Person.MILDLY_HUNGRY) {
+            if (this.happyMusic.volume == 0) {
+                this.game.add.tween(this.happyMusic).to({volume: vol}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
+            }
+        } else if (this.averageHunger < Person.VERY_HUNGRY) {
+            if (this.worryMusic.volume == 0) {
+                this.game.add.tween(this.happyMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({volume: vol}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
+            }
+        } else {
+            if (this.dangerMusic.volume == 0) {
+                this.game.add.tween(this.happyMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({volume: vol}, 500, Phaser.Easing.Default, true);
             }
         }
     }
