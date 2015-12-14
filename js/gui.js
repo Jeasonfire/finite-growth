@@ -18,6 +18,10 @@ var GameGUI = (function () {
         this.averageHungerFull = this.game.make.sprite(475, 528, "hungerFull");
         this.averageHungerFull.smoothed = false;
         this.averageHungerFull.scale.setTo(8, 8);
+        this.infoScreen = this.game.make.sprite(0, 0, "infoscreen");
+        var infoButton = this.game.make.button(625, 551, "infobutton", this.toggleInfoScreen, this);
+        this.toggleInfoScreen();
+        var restartButton = this.game.make.button(680, 550, "restart", this.restart, this);
         foregroundGroup.add(this.buttonAutoFarm);
         foregroundGroup.add(this.workingPeople);
         foregroundGroup.add(this.amountOfHouses);
@@ -25,6 +29,9 @@ var GameGUI = (function () {
         foregroundGroup.add(avgText);
         foregroundGroup.add(this.averageHungerEmpty);
         foregroundGroup.add(this.averageHungerFull);
+        foregroundGroup.add(this.infoScreen);
+        foregroundGroup.add(infoButton);
+        foregroundGroup.add(restartButton);
     }
     GameGUI.prototype.update = function (peopleAmt, freePeopleAmt, housesAmt, toolType, averageHunger) {
         var time = this.game.time.totalElapsedSeconds();
@@ -62,6 +69,12 @@ var GameGUI = (function () {
         else {
             this.buttonAutoFarm.setFrames(5, 4, 6, 7);
         }
+    };
+    GameGUI.prototype.toggleInfoScreen = function () {
+        this.infoScreen.visible = !this.infoScreen.visible;
+    };
+    GameGUI.prototype.restart = function () {
+        this.game.state.restart();
     };
     return GameGUI;
 })();

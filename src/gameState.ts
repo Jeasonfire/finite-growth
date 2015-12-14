@@ -40,6 +40,7 @@ class GameState {
 
     private houseBuildingCooldown: number = 0.1;
     private lastHouseBuilt: number = 0;
+    private changingVolume: boolean = false;
 
     public create(): void {
         gui.close();
@@ -178,22 +179,36 @@ class GameState {
 
     private updateSound(vol: number): void {
         if (this.averageHunger < Person.MILDLY_HUNGRY) {
-            if (this.happyMusic.volume == 0) {
-                this.game.add.tween(this.happyMusic).to({volume: vol}, 500, Phaser.Easing.Default, true);
+            if (this.happyMusic.volume == 0 && !this.changingVolume) {
+                this.changingVolume = true;
+                this.game.add.tween(this.happyMusic).to({volume: vol}, 500, Phaser.Easing.Default, true).onComplete.add(() => {this.changingVolume = false;}, this);
                 this.game.add.tween(this.worryMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
                 this.game.add.tween(this.dangerMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
             }
         } else if (this.averageHunger < Person.VERY_HUNGRY) {
-            if (this.worryMusic.volume == 0) {
+            if (this.worryMusic.volume == 0 && !this.changingVolume) {
+                this.changingVolume = true;
                 this.game.add.tween(this.happyMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
-                this.game.add.tween(this.worryMusic).to({volume: vol}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.worryMusic).to({volume: vol}, 500, Phaser.Easing.Default, true).onComplete.add(() => {this.changingVolume = false;}, this);
                 this.game.add.tween(this.dangerMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
             }
         } else {
-            if (this.dangerMusic.volume == 0) {
+            if (this.dangerMusic.volume == 0 && !this.changingVolume) {
+                this.changingVolume = true;
                 this.game.add.tween(this.happyMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
                 this.game.add.tween(this.worryMusic).to({volume: 0}, 500, Phaser.Easing.Default, true);
-                this.game.add.tween(this.dangerMusic).to({volume: vol}, 500, Phaser.Easing.Default, true);
+                this.game.add.tween(this.dangerMusic).to({volume: vol}, 500, Phaser.Easing.Default, true).onComplete.add(() => {this.changingVolume = false;}, this);
+            }
+        }
+        if (!this.changingVolume) {
+            if (this.happyMusic.volume != 0) {
+                this.happyMusic.volume = vol;
+            }
+            if (this.worryMusic.volume != 0) {
+                this.worryMusic.volume = vol;
+            }
+            if (this.dangerMusic.volume != 0) {
+                this.dangerMusic.volume = vol;
             }
         }
     }

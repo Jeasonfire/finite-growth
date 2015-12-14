@@ -16,6 +16,9 @@ var PreloadingState = (function () {
         this.game.load.image("playButton", "./res/img/playButton.png");
         this.game.load.image("playButtonUnderline", "./res/img/playButtonUnderline.png");
         this.game.load.image("mainMenuBackground", "./res/img/mainMenuBackground.png");
+        this.game.load.image("restart", "./res/img/restart.png");
+        this.game.load.image("infoscreen", "./res/img/infoscreen.png");
+        this.game.load.image("infobutton", "./res/img/infobutton.png");
         this.game.load.spritesheet("house", "./res/img/house.png", 32, 32);
         this.game.load.spritesheet("farm", "./res/img/farm.png", 32, 32);
         this.game.load.spritesheet("person", "./res/img/person.png", 12, 12);

@@ -8,6 +8,7 @@ class GameGUI {
     private currentTool: Phaser.Text;
     private averageHungerFull: Phaser.Sprite;
     private averageHungerEmpty: Phaser.Sprite;
+    private infoScreen: Phaser.Sprite;
 
     private autoFarmRefresh: boolean;
 
@@ -33,6 +34,12 @@ class GameGUI {
         this.averageHungerFull.smoothed = false;
         this.averageHungerFull.scale.setTo(8, 8);
 
+        this.infoScreen = this.game.make.sprite(0, 0, "infoscreen");
+        var infoButton = this.game.make.button(625, 551, "infobutton", this.toggleInfoScreen, this);
+        this.toggleInfoScreen();
+
+        var restartButton = this.game.make.button(680, 550, "restart", this.restart, this);
+
         foregroundGroup.add(this.buttonAutoFarm);
         foregroundGroup.add(this.workingPeople);
         foregroundGroup.add(this.amountOfHouses);
@@ -40,6 +47,9 @@ class GameGUI {
         foregroundGroup.add(avgText);
         foregroundGroup.add(this.averageHungerEmpty);
         foregroundGroup.add(this.averageHungerFull);
+        foregroundGroup.add(this.infoScreen);
+        foregroundGroup.add(infoButton);
+        foregroundGroup.add(restartButton);
     }
 
     public update(peopleAmt: number, freePeopleAmt: number, housesAmt: number, toolType: TileType, averageHunger: number): void {
@@ -81,5 +91,13 @@ class GameGUI {
         } else {
             this.buttonAutoFarm.setFrames(5, 4, 6, 7);
         }
+    }
+
+    private toggleInfoScreen(): void {
+        this.infoScreen.visible = !this.infoScreen.visible;
+    }
+
+    private restart(): void {
+        this.game.state.restart();
     }
 }
